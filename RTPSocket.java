@@ -6,7 +6,6 @@ import java.util.HashMap;
 public class RTPSocket {
 	private static final int WINDOW_SIZE = 10000;
 	private static final int MAX_PCKT_SIZE = 1000;
-	private static final int BACKLOG_SIZE = 50;
 
 	private static final int FIN = 1 << 0;
 	private static final int SYN = 1 << 1;
@@ -21,8 +20,8 @@ public class RTPSocket {
 	private DatagramPacket send_pckt;
 	private DatagramPacket receive_pckt;
 
-	private ArrayList backlog; //queue of unestablished connections *might not need!
-	private HashMap clientMap; //map of all currently connected clients
+	private HashMap<ClientConnection> notYetServiced; //map of unestablished connections
+	private HashMap<ClientConnection> clientMap; //map of all currently connected clients
 
 	private int timeout;
 	private boolean closed;
