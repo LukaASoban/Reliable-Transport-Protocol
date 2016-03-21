@@ -7,13 +7,6 @@ public class RTPSocket {
 	private static final int WINDOW_SIZE = 10000;
 	private static final int MAX_PCKT_SIZE = 1000;
 
-	private static final int FIN = 1 << 0;
-	private static final int SYN = 1 << 1;
-	private static final int RST = 1 << 2;
-	private static final int PSH = 1 << 3;
-	private static final int ACK = 1 << 4;
-	private static final int URG = 1 << 5;
-
 	private DatagramSocket server_socket;
 
 	private byte[] buffer;
