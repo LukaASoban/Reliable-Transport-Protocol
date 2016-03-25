@@ -140,9 +140,8 @@ public class RTPacket {
 	public byte[] toByteForm() {
 
 		/*
-			flags | len | seq_num | ack_num | window_size
-		*/
-
+		 *	flags | len | seq_num | ack_num | window_size
+		 */
 		byte[] buffer = new byte[length()];
 		byte[] b_flags = intToByte(flags);
 		byte[] b_header = intToByte(HEADER_LENGTH);
