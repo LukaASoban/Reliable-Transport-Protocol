@@ -7,18 +7,18 @@ public class RTPSocket {
 	private static final int WINDOW_SIZE = 10000;
 	private static final int MAX_PCKT_SIZE = 1000;
 
-	private DatagramSocket server_socket;
+	private DatagramSocket socket;
+	private DatagramPacket udp_pckt;
 
-	private byte[] buffer;
-	private DatagramPacket send_pckt;
-	private DatagramPacket receive_pckt;
+	private RTPacket rtp_pckt;
 
-	private HashMap<ClientConnection> notYetServiced; //map of unestablished connections
-	private HashMap<ClientConnection> clientMap; //map of all currently connected clients
+	private byte[] data_buffer;
+	private String[] pckt_flags;
+
+	private HashMap<SocketAddress, ClientConnection> established; //map of all currently connected clients
 
 	private int timeout;
 	private boolean closed;
-
 
 	/**
 	 * Creates an unbound RTP server socket
@@ -32,8 +32,7 @@ public class RTPSocket {
 	/**
 	 * Creates a RTP server socket and binds it to a specified local port
 	 *
-	 * @param port    	the port number to use any free port
-	 * 
+	 * @param port the port number to use any free port
 	 * @throws IOException if an I/O Error occurs while opening the UDP Socket
 	 */
 	public RTPSocket(int port) throws IOException {
@@ -43,16 +42,15 @@ public class RTPSocket {
 	/**
 	 * Creates a RTP server socket and binds it to a specified local port and IP address
 	 *
-	 * @param port    	the port number to use any free port
-	 * @param bindAddr	the local InetAddress the server will bind to
+	 * @param port the port number to use any free port
+	 * @param bindAddr the local InetAddress the server will bind to
 	 * @throws IOException if an I/O Error occurs while opening the UDP Socket
 	 */
 	public RTPSocket(int port, InetAddress bindAddr) throws IOException {
 		this.server_socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
 		buffer = new byte[MAX_PCKT_SIZE];
-		receive_pckt = new DatagramPacket(buffer, buffer.length);
+		udp_pckt = new DatagramPacket(buffer, buffer.length);
 
-		backlog = new ArrayList(BACKLOG_SIZE);
 		clientMap = new HashMap<Connection>();
 		timeout = 0;
 		closed = false;
@@ -62,8 +60,7 @@ public class RTPSocket {
 	 * Binds the server socket to a specified local port and IP.
 	 * If IP is null then it will create a socket using the local IP 
 	 *
-	 * @param port    	the port number to use any free port
-	 * 
+	 * @param port the port number to use any free port
 	 * @throws IOException if an I/O Error occurs while binding the UDP Socket
 	 */
 	public void bind(int port, InetAddress bindAddr) throws IOException {
@@ -71,14 +68,29 @@ public class RTPSocket {
 	}
 
 	public void listen() {
-		server_socket.receive(receive_pckt);
-		int[] header_data = deHeaderize(buffer);
-		if((header_data[2] & SYN == 0) && header_data[0] == 0) {
-			buffer = headerize(0, 0, WINDOW_SIZE, SYN | ACK, buffer);
-			send_pckt = new DatagramPacket(buffer, buffer.length);
-			send_pckt.setPort(receive_pckt.getPort());
-			send_pckt.setAddress(receive_pckt.getAddress());
-			server_socket.send(send_pckt);
+		SocketAddress client;
+
+		while (true) {
+			socket.receive(udp_pckt);
+			client = udp_pckt.getSocketAddress();
+			rtp_pckt = RTPacket.makeIntoPacket(data_buffer);
+			pckt_flags = rtp_pckt.getFlags();
+
+			if(established.get(client) == NULL) {
+				if(pckt_flags[1].equals("SYN") && rtp_pckt.seq_num() == 0) {
+					pckt_flags[4] = "ACK";
+					rtp_pckt.setFlags(pckt_flags);
+					data_buffer = rtp_pckt.toByteForm();
+					udp_pckt.setData(data_buffer);
+					socket.send(udp_pckt);
+				} else if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() == 1) {
+					accept(udp_pckt.getSocketAddress());
+				}
+			} else {
+				if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() > 1) {
+
+				}
+			}
 		}
 	}
 
@@ -86,21 +98,13 @@ public class RTPSocket {
 
 	}
 	
-	//TODO: Little confused on the accept method. How are we going to keep the queue going to accept 
-	//		the connections? Is it already done for us in the OS or do we have to implement some sort
-	//		of backlog? 
-	public void accept()  {
-
-	}
-
-	
 	/**
      * Register new connection with a client and add to client map.
      *
-     * @param endpoint    the new connection.
+     * @param endpoint the new connection.
      * @return the registered client.
      */
-	public ClientConnection addClientConnection(SocketAddress endpoint) {
+	public ClientConnection accept(SocketAddress endpoint) {
 		ClientConnection connection = clientMap.get(endpoint);
 
 		if(connection == null) {
@@ -117,7 +121,7 @@ public class RTPSocket {
 	/**
      * Removes a client from the clientMap
      *
-     * @param endpoint    the connection.
+     * @param endpoint the connection.
      * @return the removed client.
      */
 	public ClientConnection removeClientConnection(SocketAddress endpoint) {

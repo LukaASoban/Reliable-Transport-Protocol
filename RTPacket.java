@@ -137,7 +137,6 @@ public class RTPacket {
 
 	}
 
-
 	public byte[] toByteForm() {
 
 		/*
@@ -150,19 +149,20 @@ public class RTPacket {
 		byte[] b_seq = intToByte(seq_num);
 		byte[] b_ack = intToByte(ack_num);
 		byte[] b_window = intToByte(window_size);
-		for (int i = 0; i<4; i++) {
+
+		for (int i = 0; i < 4; i++) {
 			buffer[i] = b_flags[i];
 		}
-		for (int i = 4; i<8; i++) {
+		for (int i = 4; i < 8; i++) {
 			buffer[i] = b_header[i];
 		}
-		for (int i = 8; i<12; i++) {
+		for (int i = 8; i < 12; i++) {
 			buffer[i] = b_seq[i];
 		}
-		for (int i = 12; i<16; i++) {
+		for (int i = 12; i < 16; i++) {
 			buffer[i] = b_ack[i];
 		}
-		for (int i = 16; i<20; i++) {
+		for (int i = 16; i < 20; i++) {
 			buffer[i] = b_window[i];
 		}
 
@@ -185,19 +185,19 @@ public class RTPacket {
 
 		RTPacket packet = null;
 
-		for (int i = 0; i<4; i++) {
+		for (int i = 0; i < 4; i++) {
 			b_flags[i] = bytes[i];
 		}
-		for (int i = 4; i<8; i++) {
+		for (int i = 4; i < 8; i++) {
 			b_header[i] = bytes[i];
 		}
-		for (int i = 8; i<12; i++) {
+		for (int i = 8; i < 12; i++) {
 			b_seq[i] = bytes[i];
 		}
-		for (int i = 12; i<16; i++) {
+		for (int i = 12; i < 16; i++) {
 			b_ack[i] = bytes[i];
 		}
-		for (int i = 16; i<20; i++) {
+		for (int i = 16; i < 20; i++) {
 			b_window[i] = bytes[i];
 		}
 
@@ -237,14 +237,7 @@ public class RTPacket {
 		}
 
 		return packet;
-
-
 	}
-
-
-
-
-
 
 	/**
 	 * Takes in an integer and converts it to a byte array - BIG ENDIAN
