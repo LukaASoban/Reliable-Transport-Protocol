@@ -1,193 +1,114 @@
 import java.net.*;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 
 public class RTPSocket {
-	private static final int WINDOW_SIZE = 10000;
-	private static final int MAX_PCKT_SIZE = 1000;
 
-	private DatagramSocket socket;
-	private DatagramPacket udp_pckt;
+    private InetAddress bindAddr;
+    private int port;
 
-	private RTPacket rtp_pckt;
+    private int nextSeqNum;
+    private int currentWindowSize;
 
-	private byte[] data_buffer;
-	private String[] pckt_flags;
+    private LinkedList<RTPacket> outOfOrderPackets = new LinkedList<RTPacket>();
 
-	private HashMap<SocketAddress, ClientConnection> established; //map of all currently connected clients
+    /**
+     * Creates a RTP server socket and binds it to a specified local port and IP address
+     *
+     * @param port the port number to use any free port
+     * @param bindAddr the local InetAddress the server will bind to
+     * @throws IOException if an I/O Error occurs while opening the UDP Socket
+     */
+    public RTPSocket(InetAddress bindAddr, int port) throws IOException {
+        this.bindAddr = bindAddr;
+        this.port = port;
 
-	private int timeout;
-	private boolean closed;
+        RTPStack.createQueue(port);      
+        // this.server_socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
+        // data_buffer = new byte[MAX_PCKT_SIZE];
+        // udp_pckt = new DatagramPacket(data_buffer, data_buffer.length);
 
-	/**
-	 * Creates an unbound RTP server socket
-	 * 
-	 * @throws IOException if an I/O Error occurs while opening the UDP Socket
-	 */
-	public RTPSocket() throws IOException {
-		this(0,null);
-	}
-
-	/**
-	 * Creates a RTP server socket and binds it to a specified local port
-	 *
-	 * @param port the port number to use any free port
-	 * @throws IOException if an I/O Error occurs while opening the UDP Socket
-	 */
-	public RTPSocket(int port) throws IOException {
-		this(port,null);
-	}
-
-	/**
-	 * Creates a RTP server socket and binds it to a specified local port and IP address
-	 *
-	 * @param port the port number to use any free port
-	 * @param bindAddr the local InetAddress the server will bind to
-	 * @throws IOException if an I/O Error occurs while opening the UDP Socket
-	 */
-	public RTPSocket(int port, InetAddress bindAddr) throws IOException {
-		this.server_socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
-		buffer = new byte[MAX_PCKT_SIZE];
-		udp_pckt = new DatagramPacket(buffer, buffer.length);
-
-		clientMap = new HashMap<Connection>();
-		timeout = 0;
-		closed = false;
-	}
-
-	/**
-	 * Binds the server socket to a specified local port and IP.
-	 * If IP is null then it will create a socket using the local IP 
-	 *
-	 * @param port the port number to use any free port
-	 * @throws IOException if an I/O Error occurs while binding the UDP Socket
-	 */
-	public void bind(int port, InetAddress bindAddr) throws IOException {
-		server_socket.bind(new InetSocketAddress(bindAddr, port));
-	}
-
-	public void listen() {
-		SocketAddress client;
-
-		while (true) {
-			socket.receive(udp_pckt);
-			client = udp_pckt.getSocketAddress();
-			rtp_pckt = RTPacket.makeIntoPacket(data_buffer);
-			pckt_flags = rtp_pckt.getFlags();
-
-			if(established.get(client) == NULL) {
-				if(pckt_flags[1].equals("SYN") && rtp_pckt.seq_num() == 0) {
-					pckt_flags[4] = "ACK";
-					rtp_pckt.setFlags(pckt_flags);
-					data_buffer = rtp_pckt.toByteForm();
-					udp_pckt.setData(data_buffer);
-					socket.send(udp_pckt);
-				} else if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() == 1) {
-					accept(udp_pckt.getSocketAddress());
-				}
-			} else {
-				if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() > 1) {
-
-				}
-			}
-		}
-	}
-
-	public void connect() {
-
-	}
+        // clientMap = new HashMap<SocketAddress, Connection>();
+        // closed = false;
+    }
 	
-	/**
-     * Register new connection with a client and add to client map.
-     *
-     * @param endpoint the new connection.
-     * @return the registered client.
-     */
-	public ClientConnection accept(SocketAddress endpoint) {
-		ClientConnection connection = clientMap.get(endpoint);
+	
+	public void accept() {
 
-		if(connection == null) {
-			try {
-				connection = new ClientConnection(/*TODO: What will the parameters be?*/);
-				clientMap.put(endpoint, connection);
-			} 
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
+        //i don't know how to access this particular socket's address in recvqueu
+        DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
-	/**
-     * Removes a client from the clientMap
-     *
-     * @param endpoint the connection.
-     * @return the removed client.
-     */
-	public ClientConnection removeClientConnection(SocketAddress endpoint) {
-		ClientConnection connection = clientMap.remove(endpoint);
+        //take the data from datagram and convert into RTPacket
+        RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
 
-		if(clientMap.isEmpty() && isClosed()) {
-			server_socket.close();
-		}
+        String[] flags = rtp_pckt.getFlags();
 
-		return connection;
-	}
+        if(flags[1].equals("SYN") && rtp_pckt.seq_num() == 0) {
+            flags[4] = "ACK";
+            rtp_pckt.setFlags(flags);
+            byte[] data_buffer = rtp_pckt.toByteForm();
+            udp_pckt.setData(data_buffer);
+            RTPStack.sendQ.put(udp_pckt);
+            currentWindowSize = rtp_pckt.window_size();
+        } else {
+            //do nothing
+        }
+
+        dgrm_pkt = RTPStack.recvQ.get(port).poll();
+
+        rtp_pckt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+        flags = rtp_pckt.getFlags();
+
+        if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() == 1) {
+            nextSeqNum = 2;
+            return;
+        } else {
+            //not sure
+        }
 
 
-
-
-	public void receive() {
-
-	}
-
-	public void send() {
-
-	}
-
-	public void close() {
-
-		if(isClosed()) return;
-
-		closed = true;
-		backlog.clear();
-
-		if(clientMap.isEmpty()) { server_socket.close(); }
-	}
-
-	private int[] deHeaderize(byte[]) {
-
-	}
-
-	private byte[] headerize(int seq_num, int ack_num, int window_size,
-							 int flags, byte[] data) {
-
-	}
-
-
-
-	public InetAddress getInetAddress()
-    {
-        return server_socket.getInetAddress();
     }
 
-    public int getLocalPort()
-    {
-        return server_socket.getLocalPort();
-    }
+    public void receive() {
 
-    public SocketAddress getLocalSocketAddress()
-    {
-        return server_socket.getLocalSocketAddress();
-    }
+        //get the packet from the recv queue
+        DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
-    public boolean isBound()
-    {
-        return server_socket.isBound();
-    }
+        //take the data from datagram and convert into RTPacket
+        RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+        String[] flags = rtp_pckt.getFlags();
+        currentWindowSize = rtp_pckt.window_size();
 
-    public boolean isClosed()
-    {
-        return closed;
+        int seqNewPacket = rtp_pckt.seq_num();
+
+        //check if the seq num is the next one we need
+        for (int i = 0; i < outOfOrderPackets.size(); i++) {
+            
+            RTPacket p = outOfOrderPackets.get(i);
+            if(p.seq_num() < seqNewPacket) {
+                outOfOrderPackets.add(i-1, rtp_pckt);
+                break;
+            }
+
+        }
+
+        //check if there are any gaps in the linked list
+        RTPacket p = outOfOrderPackets.get(0);
+        int counter = p.length();
+        for (int i = 1; i < outOfOrderPackets.size(); i++) {
+
+            p = outOfOrderPackets.get(i);
+            if(counter+1 != p.seq_num) {
+                //then we have a gap
+                TODO: finish this part where we send doubleacks for each
+                gap in the sequence numbers
+            }
+
+
+        }
+
+
+
+
+
+
     }
 }
