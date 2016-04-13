@@ -12,7 +12,7 @@ public class RTPStack {
     public void init(InetAddress bindAddr, int port) {
 
     	socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
-    	recvQ = new HashMap<String, BlockingQueue<DatagramPacket>>();
+    	recvQ = new HashMap<Integer, BlockingQueue<DatagramPacket>>();
     	sendQ = new LinkedBlockingQueue<RTPacket>();
 
     }
