@@ -77,7 +77,7 @@ public class RTPSocket {
         String[] flags = rtp_pckt.getFlags();
         currentWindowSize = rtp_pckt.window_size();
 
-        int seqNewPacket = rtp_pckt.seq_num();
+        int seqOfNewPacket = rtp_pckt.seq_num();
 
         //check if the seq num is the next one we need
         for (int i = 0; i < outOfOrderPackets.size(); i++) {

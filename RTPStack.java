@@ -15,11 +15,13 @@ public class RTPStack {
     	recvQ = new HashMap<Integer, BlockingQueue<DatagramPacket>>();
     	sendQ = new LinkedBlockingQueue<RTPacket>();
 
+        //This is where the recv and send threads will start running
+
     }
 
     /* This method creates a new queue for the hashmap given a port number*/
     public static createQueue(int port) {
-        BlockingQueue<DatagramPacket> queue = new BlockingQueue<DatagramPacket>();
+        BlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<RTPacket>();
         recvQ.put(port, queue);
     }
 
@@ -38,7 +40,8 @@ public class RTPStack {
     			try{
     				
     				socket.receive(udp_pkt); //recv
-    				packet.source //get the source of hte packet
+
+    				packet.getAddress();
     				recvQ.get(source).enqueue(udp_pkt); //check if it is in there first
 
 
