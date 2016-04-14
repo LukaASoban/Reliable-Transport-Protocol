@@ -10,7 +10,7 @@ public class RTPStack {
     protected HashMap<Integer, BlockingQueue<DatagramPacket>> recvQ;
     protected BlockingQueue<RTPacket> sendQ;
     protected BlockingQueue<RTPacket> unestablished;
-    protected Linkedlist<Short> available_ports;
+    protected Linkedlist<Integer> available_ports;
 
 
     public void init(InetAddress bindAddr, int port) {
@@ -21,19 +21,19 @@ public class RTPStack {
     	sendQ = new LinkedBlockingQueue<RTPacket>();
         unestablished =  = new LinkedBlockingQueue<RTPacket>();
 
-        udp_pkt = new DatagramPacket();
+        udp_pkt = new DatagramPacket(buffer, buffer.length);
 
         for(int i = 1; i < Short.MAX_VAUE; i++) {
             available_ports.add(i);
         }
 
-        //This is where the recv and send threads will start running
+        //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
 
     }
 
     /* This method creates a new queue for the hashmap given a port number*/
     public static createQueue(int port) {
-        BlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<RTPacket>();
+        BlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<DatagramPacket>();
         recvQ.put(port, queue);
     }
 
@@ -50,14 +50,16 @@ public class RTPStack {
     			try{
     				
     				socket.receive(udp_pkt); //get a new packet
-                    
 
+                    byte[] portOfPacket = new byte[4];
+                    System.arraycopy(buffer, 28, portOfPacket, 0, portOfPacket.length);
+                    int port_num = RTPacket.byteToInt(portOfPacket);
 
                     //is the packet from a established connection or not?
-                    if(recvQ.get(key) == null) {
+                    if(recvQ.get(port_num) == null) {
                         unestablished.put(udp_pkt);
                     } else {
-                        recvQ.get(key).put(udp_pkt);
+                        recvQ.get(port_num).put(udp_pkt);
                     }
 
 
