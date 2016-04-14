@@ -6,7 +6,7 @@ import java.util.zip.Checksum;
 
 public class RTPacket {
 	
-	private static final int HEADER_LENGTH = 28; //int x 5 + long = 28 bytes | data starts after
+	private static final int HEADER_LENGTH = 32; //int x 6 + long = 28 bytes | data starts after
 	private static final int FIN = 1 << 0;
 	private static final int SYN = 1 << 1;
 	private static final int RST = 1 << 2;
@@ -182,7 +182,7 @@ public class RTPacket {
 	public byte[] toByteForm() {
 
 		/*
-		 *	flags | seq_num | ack_num | window_size | connectionID | checksum
+		 *	flags | seq_num | ack_num | window_size | connectionID | checksum | lengthofpacket
 		 */
 		byte[] buffer = new byte[length()];
 		byte[] b_flags = intToByte(flags);
@@ -190,6 +190,7 @@ public class RTPacket {
 		byte[] b_ack = intToByte(ack_num);
 		byte[] b_window = intToByte(window_size);
 		byte[] b_checksum = longToByteArray(checksum);
+		byte[] b_length = intToByte(data.length);
 		byte[] b_ID = intToByte(connectionID);
 
 		for (int i = 0; i < 4; i++) {
@@ -210,6 +211,9 @@ public class RTPacket {
 		for (int i = 20; i < 28; i++) {
 			buffer[i] = b_checksum[i-20];
 		}
+		for (int i = 28; i < 32; i++) {
+			buffer[i] = b_length[i-28];
+		}
 
 		if(data != null) {
 			System.arraycopy(data, 0, buffer, HEADER_LENGTH, data.length);
@@ -222,7 +226,7 @@ public class RTPacket {
 
 	public static RTPacket makeIntoPacket(byte[] udpBytes) {
 		/*
-		 *	flags | seq_num | ack_num | window_size | connectionID
+		 *	flags | seq_num | ack_num | window_size | connectionID | length of data
 		 */
 		byte[] b_flags = new byte[4];
 		byte[] b_seq = new byte[4];
@@ -230,6 +234,7 @@ public class RTPacket {
 		byte[] b_window = new byte[4];
 		byte[] b_ID = new byte[4];
 		byte[] b_checksum = new byte[8];
+		byte[] b_length = new byte[4];
 		byte[] b_data = new byte[udpBytes.length - HEADER_LENGTH];
 
 		RTPacket packet = null;
@@ -252,6 +257,9 @@ public class RTPacket {
 		for (int i = 20; i < 28; i++) {
 			b_checksum[i-20] = udpBytes[i];
 		}
+		for (int i = 28; i < 32; i++) {
+			b_length[i-28] = udpBytes[i];
+		}
 
 
 		int _flags = byteToInt(b_flags);
@@ -259,6 +267,7 @@ public class RTPacket {
 		int _ack = byteToInt(b_ack);
 		int _window = byteToInt(b_window);
 		int _ID = byteToInt(b_ID);
+		int _length = byteToInt(b_length);
 		long _checksum = byteArrayToLong(b_checksum);
 		String[] theFlags = new String[]{"","","","","",""};
 		//check which flags are active
@@ -281,6 +290,7 @@ public class RTPacket {
 			theFlags[5] = "URG";
 		}
 
+		b_data = new byte[_length];
 
 		if(b_data.length == 0) {
 			packet = new RTPacket(_seq, _ack, _window, theFlags, null);

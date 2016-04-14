@@ -21,7 +21,7 @@ public class RTPSocket {
         this.bindAddr = bindAddr;
         this.port = port;
 
-        RTPStack.createQueue(port);      
+        // RTPStack.createQueue(port);      
         // this.server_socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
         // data_buffer = new byte[MAX_PCKT_SIZE];
         // udp_pckt = new DatagramPacket(data_buffer, data_buffer.length);
@@ -33,38 +33,49 @@ public class RTPSocket {
 	
 	public void accept() {
 
-        //i don't know how to access this particular socket's address in recvqueu
-        DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
+        //i don't know how to access this particular socket's address in recvqueue
+        while(true) {
+            DatagramPacket dgrm_pkt = RTPStack.unestablished.poll();
 
-        //take the data from datagram and convert into RTPacket
-        RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+            if(dgrm_pkt != null) {
 
-        String[] flags = rtp_pckt.getFlags();
+                //take the data from datagram and convert into RTPacket
+                RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
 
-        if(flags[1].equals("SYN") && rtp_pckt.seq_num() == 0) {
-            flags[4] = "ACK";
-            rtp_pckt.setFlags(flags);
-            byte[] data_buffer = rtp_pckt.toByteForm();
-            udp_pckt.setData(data_buffer);
-            RTPStack.sendQ.put(udp_pckt);
-            currentWindowSize = rtp_pckt.window_size();
-        } else {
-            //do nothing
+                String[] flags = rtp_pckt.getFlags();
+
+                if(flags[1].equals("SYN") && rtp_pckt.seq_num() == 0) {
+                    flags[4] = "ACK";
+                    rtp_pckt.setFlags(flags);
+                    byte[] data_buffer = rtp_pckt.toByteForm();
+                    udp_pckt.setData(data_buffer);
+                    port = RTPStack.available_ports.remove();
+                    udp_pckt.setConnectionID(port));
+                    RTPStack.createQueue(port);
+                    RTPStack.sendQ.put(udp_pckt);
+                    break;
+                    //currentWindowSize = rtp_pckt.window_size();
+                } else {
+                    //do nothing
+                }
+            }
         }
 
-        dgrm_pkt = RTPStack.recvQ.get(port).poll();
+        while(true) {
+            dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
-        rtp_pckt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
-        flags = rtp_pckt.getFlags();
+            if(dgrm_pkt != null) {
+                rtp_pckt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                flags = rtp_pckt.getFlags();
 
-        if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() == 1) {
-            nextSeqNum = 2;
-            return;
-        } else {
-            //not sure
+                if(pckt_flags[4].equals("ACK") && rtp_pckt.seq_num() == 1) {
+                    nextSeqNum = 2;
+                    return;
+                } else {
+                    //not sure
+                }
+            }
         }
-
-
     }
 
     public void receive() {
