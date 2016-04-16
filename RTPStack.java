@@ -8,7 +8,7 @@ public class RTPStack {
     private DatagramPacket udp_pckt;
 
     protected HashMap<Integer, BlockingQueue<DatagramPacket>> recvQ;
-    protected BlockingQueue<RTPacket> sendQ;
+    protected BlockingQueue<DatagramPacket> sendQ;
     protected BlockingQueue<RTPacket> unestablished;
     protected Linkedlist<Integer> available_ports;
 
@@ -18,7 +18,7 @@ public class RTPStack {
         buffer = new byte[1000];
     	socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
     	recvQ = new HashMap<Integer, BlockingQueue<DatagramPacket>>();
-    	sendQ = new LinkedBlockingQueue<RTPacket>();
+    	sendQ = new LinkedBlockingQueue<DatagramPacket>();
         unestablished =  = new LinkedBlockingQueue<RTPacket>();
 
         udp_pkt = new DatagramPacket(buffer, buffer.length);
@@ -28,6 +28,10 @@ public class RTPStack {
         }
 
         //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
+        RecvThread recvthread = new RecvThread();
+        SendThread sendthread = new SendThread();
+        new Thread(recvthread).start();
+        new Thread(sendthread).start();
 
     }
 
@@ -81,8 +85,7 @@ public class RTPStack {
 
     		while(true) {
 
-    			
-    			RTPacket send_pkt = sendQ.poll();
+    			DatagramPacket send_pkt = sendQ.take();
     			socket.send(send_pkt); // convert to datagram packet
 
     		}
