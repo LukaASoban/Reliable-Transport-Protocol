@@ -2,6 +2,8 @@ import java.net.*;
 
 public class RTPSocket {
 
+    private boolean isCLOSED;
+
     private InetAddress bindAddr;
     private int port;
 
@@ -46,6 +48,8 @@ public class RTPSocket {
         this.send_buffer = new HashMap<Integer, DatagramPacket>();
         this.recv_base = 2 // this is the first seq num we should get
         this.send_base = 2; //first seq num we should send
+        
+        this.isCLOSED = false;
         // RTPStack.createQueue(port);      
         // this.server_socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
         // data_buffer = new byte[MAX_PCKT_SIZE];
@@ -54,9 +58,88 @@ public class RTPSocket {
         // clientMap = new HashMap<SocketAddress, Connection>();
         // closed = false;
     }
+    
+    
+    public void close() {
+        
+        try{
+            if(isCLOSED) return;
+            
+            RTPacket close = new RTPacket(-1,0,0, new String[]{"FIN"}, null);
+            close.updateChecksum();
+            byte[] buf = close.toByteForm();
+            DatagramPacket closePacket = new DatagramPacket(buf, buf.length, destAddr, destPort);
+            RTPStack.sendQ.put(closePacket);
+            
+            timelog = System.currentTimeMillis();
+            
+            while(true) {
+                
+                DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
+                
+                /* THE SYN HAS TIMED OUT*/
+                if(System.currentTimeMillis() - timelog > timeout) {
+                    RTPStack.sendQ.put(closePacket);
+                }
+                
+                //is the fin corrupt?
+                if(dgrm_pkt == null || RTPacket.isCorrupt(dgrm_pkt.getData())) {
+                    continue;
+                }
+                
+                //take the data from datagram and convert into RTPacket
+                RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                String[] flags = rtp_pkt.getFlags();
+                if(flags[0].equals("FIN") && flags[4].equals("ACK")) {
+    
+    
+                    RTPacket ack = new RTPacket(-1, 0, 0, new String[]{"ACK"}, null);
+                    ack.setConnectionID(port);
+                    ack.updateChecksum();
+                    dgrm_pkt.setData(ack.toByteForm());
+                    RTPStack.sendQ.put(dgrm_pkt);
+    
+                    timelog = System.currentTimeMillis();
+                    while(System.currentTimeMillis() - timelog < (long)600) {
+    
+                        if(RTPStack.recvQ.get(port).peek() != null) {
+                            break;
+                        }
+                    }
+                    
+                    if(RTPStack.recvQ.get(port).peek() != null) {
+                        continue;
+                    }
+                    
+                    //delete the recvQ for this socket
+                    RTPStack.recvQ.remove(port);
+                    RTPStack.recvQ.available_ports.add(port);
+                    isCLOSED = true;
+                    return;
+    
+                }
+                
+            }
+        } catch (NullPointerException e) {
+            if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
+            //delete the recvQ for this socket
+            RTPStack.recvQ.remove(port);
+            RTPStack.recvQ.available_ports.add(port);
+            isCLOSED = true;
+        }
+        return;
+    }
 
 
-    public void connect(InetAddress serverIP, int serverPort) {
+    public void connect(InetAddress serverIP, int serverPort) throws IOException {
+    
+        if(isCLOSED) {
+            throw new IOException("The socket is already closed!");
+        }
+    
+        this.destAddr = serverIP;
+        this.destPort = serverPort;
+        
         RTPacket syn = new RTPacket(0, 0, 0, new String[]{"SYN"}, null);
         syn.updateChecksum();
         byte[] buf = syn.toByteForm();
@@ -101,16 +184,18 @@ public class RTPSocket {
                 }
 
                 return;
-
             }
 
         }
 
-
     }
-	
-	
-	public void accept() {
+    
+    
+    public void accept() throws IOException {
+    
+        if(isCLOSED) {
+            throw new IOException("The socket is already closed!");
+        }
 
         //i don't know how to access this particular socket's address in recvqueue
         while(true) {
@@ -131,10 +216,10 @@ public class RTPSocket {
                 if(flags[1].equals("SYN") && rtp_pkt.seq_num() == 0) {
                     flags[4] = "ACK";
                     rtp_pkt.setFlags(flags);
+                    port = RTPStack.available_ports.remove();
+                    rtp_pkt.setConnectionID(port));
                     rtp_pkt.updateChecksum();
                     udp_pckt.setData(rtp_pkt.toByteForm());
-                    port = RTPStack.available_ports.remove();
-                    udp_pckt.setConnectionID(port));
                     RTPStack.createQueue(port);
                     RTPStack.sendQ.put(udp_pckt);
                     break;
@@ -145,6 +230,7 @@ public class RTPSocket {
             }
         }
 
+        timelog = System.currentTimeMillis();
         while(true) {
             dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
@@ -169,10 +255,24 @@ public class RTPSocket {
                     //not sure
                 }
             }
+            if(System.currentTimeMillis() - timelog > (long)600) {
+                RTPacket synAck = new RTPacket(0, 0, recvSlidingWnd, new String[]{"SYN","ACK"}, null);
+                synAck.setConnectionID(port);
+                synAck.updateChecksum();
+                byte[] toSend = synAck.toByteForm();
+                dgm_pkt.setData(toSend);
+                RTPStack.sendQ.put(dgm_pkt);
+                timelog = System.currentTimeMillis();
+            }
+            
         }
     }
 
     public int receive(byte[] usrBuf, int usrOff, int usrLen) throws IOException {
+    
+        if(isCLOSED) {
+            throw new IOException("The socket is already closed!");
+        }
 
         while(true) {
             //get the packet from the recv queue
@@ -249,7 +349,11 @@ public class RTPSocket {
 
     }
 
-    public void send(byte[] data) {
+    public void send(byte[] data) throws IOException {
+    
+        if(isCLOSED) {
+            throw new IOException("The socket is already closed!");
+        }
 
 
         /* PRE-PROCESSING - make the entire byte array into packets*/
