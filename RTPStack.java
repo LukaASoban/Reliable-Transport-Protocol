@@ -63,14 +63,17 @@ public class RTPStack {
                         continue;
                     }
 
+                    //Everytime we get a packet we check its port num to see where the packet 
+                    //will go for that particular connection in a recv queue
                     byte[] portOfPacket = new byte[4];
                     System.arraycopy(buffer, 28, portOfPacket, 0, portOfPacket.length);
                     int port_num = RTPacket.byteToInt(portOfPacket);
                     
+                    //we now check every packet to see if it is a FIN
                     byte[] flags = new byte[4];
                     System.arraycopy(buffer, 0, flags, 0, flags.length);
                     int fin = RTPacket.byteToInt(flags);
-                    
+                        
                     if((fin & 1) == 1) {
                         
                         //this is the first time we have seen a FIN for this connection
@@ -80,13 +83,14 @@ public class RTPStack {
                             finack.updateChecksum();
                             udp_pkt.setData(finack.toByteForm());
                             sendQ.put(udp_pkt);
-                                                    
+                            
+                            //We spawn a new thread so that it checks for ACKS               
                             CloseThread ct = new CloseThread(port_num);
                             new Thread(ct).start();
                             closeThreads.put(port_num, ct);                
                         }
                     
-                                
+                        //if we get a FIN from a port that already has a thread running discard it        
                         continue;
                     }
 
