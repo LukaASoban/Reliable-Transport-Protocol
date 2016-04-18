@@ -21,7 +21,7 @@ public class RTPStack {
         try {
 
             buffer = new byte[1000];
-            socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
+            socket = new DatagramSocket(port);
             recvQ = new ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>>();
             sendQ = new LinkedBlockingQueue<DatagramPacket>();
             unestablished = new LinkedBlockingQueue<DatagramPacket>();
@@ -37,8 +37,13 @@ public class RTPStack {
             //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
             RecvThread recvthread = new RecvThread();
             SendThread sendthread = new SendThread();
-            new Thread(recvthread).start();
-            new Thread(sendthread).start();
+            Thread r = new Thread(recvthread);
+            Thread s = new Thread(sendthread);
+            r.setDaemon(true);
+            s.setDaemon(true);
+            r.start();
+            s.start();
+
 
         } catch (SocketException se) {
             throw se;
