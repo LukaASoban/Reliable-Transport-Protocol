@@ -1,4 +1,6 @@
 import java.net.*;
+import java.util.HashMap;
+import java.io.*;
 
 public class RTPSocket {
 
@@ -46,7 +48,7 @@ public class RTPSocket {
         this.inOrderPackets = new HashMap<Integer, RTPacket>(); //contains sliding window size of packets
         this.inOrderAcks = new HashMap<Integer, RTPacket>();
         this.send_buffer = new HashMap<Integer, DatagramPacket>();
-        this.recv_base = 2 // this is the first seq num we should get
+        this.recv_base = 2; // this is the first seq num we should get
         this.send_base = 2; //first seq num we should send
         
         this.isCLOSED = false;
@@ -60,7 +62,7 @@ public class RTPSocket {
     }
     
     
-    public void close() {
+    public void close() throws InterruptedException {
         
         try{
             if(isCLOSED) return;
@@ -125,12 +127,14 @@ public class RTPSocket {
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
+        } catch (InterruptedException e) {
+            throw e;
         }
         return;
     }
 
 
-    public void connect(InetAddress serverIP, int serverPort) throws IOException {
+    public void connect(InetAddress serverIP, int serverPort) throws IOException, InterruptedException {
     
         try{
 
@@ -194,6 +198,8 @@ public class RTPSocket {
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
+        } catch (InterruptedException ie) {
+            throw ie;
         }
 
         return;
@@ -201,7 +207,7 @@ public class RTPSocket {
     }
     
     
-    public void accept() throws IOException {
+    public void accept() throws IOException, InterruptedException {
     
         try {
 
@@ -229,11 +235,11 @@ public class RTPSocket {
                         flags[4] = "ACK";
                         rtp_pkt.setFlags(flags);
                         port = RTPStack.available_ports.remove();
-                        rtp_pkt.setConnectionID(port));
+                        rtp_pkt.setConnectionID(port);
                         rtp_pkt.updateChecksum();
-                        udp_pckt.setData(rtp_pkt.toByteForm());
+                        dgrm_pkt.setData(rtp_pkt.toByteForm());
                         RTPStack.createQueue(port);
-                        RTPStack.sendQ.put(udp_pckt);
+                        RTPStack.sendQ.put(dgrm_pkt);
                         break;
                         //currentWindowSize = rtp_pkt.window_size();
                     } else {
@@ -244,7 +250,7 @@ public class RTPSocket {
 
             timelog = System.currentTimeMillis();
             while(true) {
-                dgrm_pkt = RTPStack.recvQ.get(port).poll();
+                DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
                 if(dgrm_pkt != null) {
 
@@ -252,10 +258,10 @@ public class RTPSocket {
                         continue; //data is corrupt, go and grab the next one
                     }                
 
-                    rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
-                    flags = rtp_pkt.getFlags();
+                    RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                    String[] flags = rtp_pkt.getFlags();
 
-                    if(pckt_flags[4].equals("ACK") && rtp_pkt.seq_num() == 1) {
+                    if(flags[4].equals("ACK") && rtp_pkt.seq_num() == 1) {
                         nextSeqNum = 2;
 
                         //get the ip and port from where this packet comes from
@@ -272,8 +278,8 @@ public class RTPSocket {
                     synAck.setConnectionID(port);
                     synAck.updateChecksum();
                     byte[] toSend = synAck.toByteForm();
-                    dgm_pkt.setData(toSend);
-                    RTPStack.sendQ.put(dgm_pkt);
+                    dgrm_pkt.setData(toSend);
+                    RTPStack.sendQ.put(dgrm_pkt);
                     timelog = System.currentTimeMillis();
                 }
                 
@@ -285,13 +291,15 @@ public class RTPSocket {
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
+        } catch (InterruptedException ie) {
+            throw ie;
         }
         return;
 
 
     }
 
-    public int receive(byte[] usrBuf, int usrOff, int usrLen) throws IOException {
+    public int receive(byte[] usrBuf, int usrOff, int usrLen) throws IOException, InterruptedException {
     
         try{
 
@@ -316,10 +324,10 @@ public class RTPSocket {
                 int seq_num = rtp_pkt.seq_num();
                 int flags_num = rtp_pkt.flags();
 
-                if(rtp_pkt.seq_num == recv_base) {
+                if(seq_num == recv_base) {
 
                     // we send an ack here if the packet is inside the socket's sliding window
-                    if(seq_num >= 2 && (flags == 0) || strFlags[2].equals("RST")) {
+                    if(seq_num >= 2 && (flags_num == 0) || flags[2].equals("RST")) {
                         RTPacket ack = new RTPacket(0, seq_num, recvSlidingWnd, new String[]{"ACK"}, null);
                         ack.setConnectionID(port);
                         ack.updateChecksum();
@@ -342,8 +350,9 @@ public class RTPSocket {
                                 return recvOffset; // returns bytes read
                             }
                         } else {
+                            //buffer isn't big enough to hold the packet so we put the datagram back into the recvQ
                             System.arraycopy(recv_buffer, 0, usrBuf, usrOff, Math.min(usrLen, recv_buffer.length));
-                            RTPStack.recvQ.get(port).put(rtp_pkt.seq_num, rtp_pkt);
+                            RTPStack.recvQ.get(port).put(dgrm_pkt);
                             int temp = recvOffset;
                             recvOffset =  0;
                             return temp; // returns bytes read
@@ -353,16 +362,16 @@ public class RTPSocket {
 
                     }
 
-                } else if(rtp_pkt.seq_num >= recv_base && rtp_pkt.seq_num < recv_base+recvSlidingWnd) {
+                } else if(seq_num >= recv_base && seq_num < recv_base+recvSlidingWnd) {
                     
-                    if(seq_num >= 2 && ((flags == 0) || strFlags[2].equals("RST"))) {
+                    if(seq_num >= 2 && ((flags_num == 0) || flags[2].equals("RST"))) {
                         RTPacket ack = new RTPacket(0, seq_num, recvSlidingWnd, new String[]{"ACK"}, null);
                         ack.updateChecksum();
                         byte[] toSend = ack.toByteForm();
                         DatagramPacket ackToSend = new DatagramPacket(toSend, toSend.length, destAddr, destPort);
                         RTPStack.sendQ.put(ackToSend);
                     }
-                    inOrderPackets.put(rtp_pkt.seq_num, rtp_pkt);
+                    inOrderPackets.put(seq_num, rtp_pkt);
 
                 } else {
                     //do nothing
@@ -377,14 +386,16 @@ public class RTPSocket {
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
+        } catch (InterruptedException ie) {
+            throw ie;
         }
-        return;
+        return -1;
         
 
 
     }
 
-    public void send(byte[] data) throws IOException {
+    public void send(byte[] data) throws IOException, InterruptedException {
     
         try {
 
@@ -401,7 +412,7 @@ public class RTPSocket {
                 if(totalBytesSent + MAX_PCKT_SIZE > data.length) {
                     byte[] buf = new byte[data.length - totalBytesSent];
                     System.arraycopy(data, totalBytesSent, buf, 0, buf.length);
-                    rtp_pkt = new RTPacket(nextSeqNum, 0, sendSlidingWnd, String[]{"RST"}, buf);
+                    rtp_pkt = new RTPacket(nextSeqNum, 0, sendSlidingWnd, new String[]{"RST"}, buf);
                     // rtp_pkt.setConnectionID(port);
                     // rtp_pkt.updateChecksum();
                     // byte[] byteForm = rtp_pkt.toByteForm();
@@ -411,7 +422,7 @@ public class RTPSocket {
                 } else {
                     byte[] buf = new byte[MAX_PCKT_SIZE];
                     System.arraycopy(data, totalBytesSent, buf, 0, buf.length);
-                    rtp_pkt = new RTPacket(nextSeqNum, 0, sendSlidingWnd, String[]{""}, buf);
+                    rtp_pkt = new RTPacket(nextSeqNum, 0, sendSlidingWnd, new String[]{""}, buf);
                     totalBytesSent += MAX_PCKT_SIZE;
                 }
 
@@ -439,7 +450,7 @@ public class RTPSocket {
                 if(dgrm_pkt != null) {
 
                     //take the data from datagram and convert into RTPacket
-                    RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                    rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
                     String[] flags = rtp_pkt.getFlags();
 
                     /* CHECK TO SEE IF WE NEED TO SEND AN ACK BACK */
@@ -480,7 +491,7 @@ public class RTPSocket {
                     for (int i = send_base; i < send_base+sendSlidingWnd; i++) {
                         
                         if(inOrderAcks.get(i) == null) {
-                            RTPStack.sendQ.put(send_buffer.get(i);
+                            RTPStack.sendQ.put(send_buffer.get(i));
                         }
 
                     }
@@ -494,6 +505,8 @@ public class RTPSocket {
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
+        } catch (InterruptedException ie) {
+            throw ie;
         }
         return;
 

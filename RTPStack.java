@@ -1,44 +1,53 @@
-import java.util.*;
+import java.util.concurrent.*;
+import java.util.LinkedList;
 import java.net.*;
+import java.io.*;
 
 public class RTPStack {
     private byte[] buffer;
 
     private DatagramSocket socket;
-    private DatagramPacket udp_pckt;
+    private DatagramPacket udp_pkt;
 
-    protected ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>> recvQ;
+    protected static ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>> recvQ;
     protected ConcurrentHashMap<Integer, CloseThread> closeThreads;
-    protected BlockingQueue<DatagramPacket> sendQ;
-    protected BlockingQueue<RTPacket> unestablished;
-    protected Linkedlist<Integer> available_ports;
+    protected static BlockingQueue<DatagramPacket> sendQ;
+    protected static BlockingQueue<DatagramPacket> unestablished;
+    protected static LinkedList<Integer> available_ports;
 
 
-    public void init(InetAddress bindAddr, int port) {
+    public void init(InetAddress bindAddr, int port) throws SocketException{
 
-        buffer = new byte[1000];
-        socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
-        recvQ = new ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>>();
-        sendQ = new LinkedBlockingQueue<DatagramPacket>();
-        unestablished = new LinkedBlockingQueue<RTPacket>();
-        closeThreads = new ConcurrentHashMap<Integer, CloseThread> closeThreads;
+        try {
 
-        udp_pkt = new DatagramPacket(buffer, buffer.length);
+            buffer = new byte[1000];
+            socket = new DatagramSocket(new InetSocketAddress(bindAddr, port));
+            recvQ = new ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>>();
+            sendQ = new LinkedBlockingQueue<DatagramPacket>();
+            unestablished = new LinkedBlockingQueue<DatagramPacket>();
+            closeThreads = new ConcurrentHashMap<Integer, CloseThread>();
+            available_ports = new LinkedList<Integer>();
 
-        for(int i = 1; i < Short.MAX_VAUE; i++) {
-            available_ports.add(i);
+            udp_pkt = new DatagramPacket(buffer, buffer.length);
+
+            for(int i = 1; i < Short.MAX_VALUE; i++) {
+                available_ports.add(i);
+            }
+
+            //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
+            RecvThread recvthread = new RecvThread();
+            SendThread sendthread = new SendThread();
+            new Thread(recvthread).start();
+            new Thread(sendthread).start();
+
+        } catch (SocketException se) {
+            throw se;
         }
-
-        //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
-        RecvThread recvthread = new RecvThread();
-        SendThread sendthread = new SendThread();
-        new Thread(recvthread).start();
-        new Thread(sendthread).start();
 
     }
 
     /* This method creates a new queue for the hashmap given a port number*/
-    public static createQueue(int port) {
+    public static void createQueue(int port) {
         BlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<DatagramPacket>();
         recvQ.put(port, queue);
     }
@@ -47,7 +56,7 @@ public class RTPStack {
 
 
 
-    private class RecvThread implements Runnable{
+    private class RecvThread implements Runnable {
 
         @Override 
         public void run() {
@@ -103,7 +112,9 @@ public class RTPStack {
 
 
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    throw new RuntimeException("The udp socket caused an IOException.");
                 }
 
             }
@@ -120,8 +131,16 @@ public class RTPStack {
 
             while(true) {
 
-                DatagramPacket send_pkt = sendQ.take();
-                socket.send(send_pkt); // convert to datagram packet
+                try {
+
+                    DatagramPacket send_pkt = sendQ.take();
+                    socket.send(send_pkt); // convert to datagram packet
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (IOException e) {
+                    //run again
+                }
 
             }
 
@@ -149,25 +168,29 @@ public class RTPStack {
 
             while(isRunning) {
 
-                DatagramPacket dgm_pkt = recvQ.get(port).poll();
-                
-                if(dgm_pkt != null) {
-                    RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
-                    String[] flags = rtp_pkt.getFlags();
-                    int seq_num = rtp_pkt.seq_num();
-                    if(flags[4].equals("ACK") && seq_num == -1) {
-                        recvQ.remove(port);
-                        kill();
+                try{
+                    DatagramPacket dgm_pkt = recvQ.get(port).poll();
+                    
+                    if(dgm_pkt != null) {
+                        RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgm_pkt.getData());
+                        String[] flags = rtp_pkt.getFlags();
+                        int seq_num = rtp_pkt.seq_num();
+                        if(flags[4].equals("ACK") && seq_num == -1) {
+                            recvQ.remove(port);
+                            kill();
+                        }
                     }
-                }
 
-                if(System.currentTimeMillis() - timelog > (long)600) {
-                    RTPacket finack = new RTPacket(-1, 0, 0, new String[]{"FIN","ACK"}, null);
-                    finack.setConnectionID(port);
-                    finack.updateChecksum();
-                    dgm_pkt.setData(finack.toByteForm());
-                    sendQ.put(dgm_pkt);
-                    timelog = System.currentTimeMillis();
+                    if(System.currentTimeMillis() - timelog > (long)600) {
+                        RTPacket finack = new RTPacket(-1, 0, 0, new String[]{"FIN","ACK"}, null);
+                        finack.setConnectionID(port);
+                        finack.updateChecksum();
+                        dgm_pkt.setData(finack.toByteForm());
+                        sendQ.put(dgm_pkt);
+                        timelog = System.currentTimeMillis();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             }
 
