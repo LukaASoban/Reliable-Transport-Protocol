@@ -9,11 +9,11 @@ public class RTPEngine {
 		rtpStack.init(null, 8591); // initialize the stack aka the send and recv threads
 		
 
-		RTPSocket socket = new RTPSocket(null, 8591);
+		RTPSocket client_socket = new RTPSocket(null, 8591);
 
 		//get the client connection
 		try{
-			socket.accept();
+			client_socket.accept();
 		} catch (Exception e) {
 			System.out.println("Error occured in accept");
 		}
@@ -22,29 +22,29 @@ public class RTPEngine {
 		
 		System.out.println("Successfully accepted a connection!");
 
-		// byte[] message = new byte[4];
 
-		// try {
-		// 	socket.receive(message, 0, message.length);
-		// } catch (Exception e) {
-		// 	System.out.println("Error occured in receive");
-		// }
+		byte[] receive_buffer = new byte[11000];
 
-		
-
-		// String m = new String(message);
-
-		// System.out.println(m); //we want to get the message called fuck
+		System.out.println("Accepted..");
+		int bytesRead = 0;
+		// client_socket.receive(receive_buffer, 0, receive_buffer.length);
+		while(bytesRead < 11000) {
+			System.out.println("Here we are");
+			bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
+			System.out.println(bytesRead);
+		}
 
 
 
-		// try {
-		// 	socket.close();
-		// } catch (InterruptedException e) {
-		// 	throw e;
-		// }
+		try {
+			client_socket.close();
+		} catch (InterruptedException e) {
+			throw e;
+		}
 			
 		
+		System.out.println("We never get here");
+
 
 	}
 }

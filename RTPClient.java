@@ -14,30 +14,25 @@ public class RTPClient {
 		InetAddress serverAddress = InetAddress.getByName("127.0.0.1");
 
 		//get the client connection
-		try{
-			socket.connect(serverAddress, 8591);
-		} catch (Exception e) {
-			System.out.println("Error occured in connect");
-		}
-
-		
+		socket.connect(serverAddress, 8591);
 		System.out.println("Success in connection");
 	
+		String s = "";
 
-		// String s = "FUCK";
-		// byte[] toSend = s.getBytes();
+		for (int i = 0; i < 12000; i++) {
+			s += "F";
+		}
 
-		// try{
-		// 	socket.send(toSend);
-		// } catch (Exception e) {
-		// 	System.out.println("Error occured in send");
-		// }
+		byte[] toSend = s.getBytes();
 
-		// try {
-		// 	socket.close();
-		// } catch (InterruptedException e) {
-		// 	throw e;
-		// }
+		
+		socket.send(toSend);
+
+		System.out.println("we sent successfully");
+	
+
+		
+		socket.close();
 
 
 
