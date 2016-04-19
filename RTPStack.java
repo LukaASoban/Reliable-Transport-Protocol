@@ -81,13 +81,15 @@ public class RTPStack {
                     //here i set the data to the correct size (buffer to end of rtppacket)
                     l = new byte[lenOfData];
                     System.arraycopy(buffer, 0, l, 0, l.length);
-                    udp_pkt.setData(l);
+                    //udp_pkt.setData(l);
+                    DatagramPacket deep_cpy = new DatagramPacket(l, l.length, udp_pkt.getAddress(), udp_pkt.getPort());
+
 
                     
 
                     //if the packet is corrupt, drop the packet
                     //TODO: DELETE isCorrupt FROM EVERY OTHER PART OF THE CODE
-                    if(RTPacket.isCorrupt(udp_pkt.getData())) {
+                    if(RTPacket.isCorrupt(deep_cpy.getData())) {
                         continue;
                     }
 
@@ -127,9 +129,9 @@ public class RTPStack {
 
                     //is the packet from a established connection or not?
                     if(recvQ.get(port_num) == null) {
-                        unestablished.put(udp_pkt);
+                        unestablished.put(deep_cpy);
                     } else {
-                        recvQ.get(port_num).put(udp_pkt);
+                        recvQ.get(port_num).put(deep_cpy);
                     }
 
 
