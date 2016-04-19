@@ -23,6 +23,7 @@ public class RTPStack {
 
             buffer = new byte[1000];
             socket = new DatagramSocket(port);
+            socket.setSoTimeout(800);
             recvQ = new ConcurrentHashMap<Integer, LinkedBlockingQueue<DatagramPacket>>();
             sendQ = new LinkedBlockingQueue<DatagramPacket>();
             unestablished = new LinkedBlockingQueue<DatagramPacket>();
@@ -55,7 +56,9 @@ public class RTPStack {
     /* This method creates a new queue for the hashmap given a port number*/
     public static void createQueue(int port) {
         LinkedBlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<DatagramPacket>();
-        recvQ.put(port, queue);
+        synchronized(recvQ) {
+            recvQ.put(port, queue);
+        }
     }
 
 
@@ -77,19 +80,26 @@ public class RTPStack {
                     System.arraycopy(buffer, 28, l, 0, 4);
                     int lenOfData = RTPacket.byteToInt(l);
                     lenOfData += RTPacket.HEADER_LENGTH;
+                    int client_port = udp_pkt.getPort();
+                    InetAddress client_addr = udp_pkt.getAddress();
 
                     //here i set the data to the correct size (buffer to end of rtppacket)
                     l = new byte[lenOfData];
+                    //System.out.println(l.length);
                     System.arraycopy(buffer, 0, l, 0, l.length);
                     //udp_pkt.setData(l);
-                    DatagramPacket deep_cpy = new DatagramPacket(l, l.length, udp_pkt.getAddress(), udp_pkt.getPort());
+                    DatagramPacket deep_cpy;
+                    synchronized(udp_pkt) {
+                        deep_cpy = new DatagramPacket(l, l.length, client_addr, client_port);
+                    }
 
-
+                    //System.out.println(deep_cpy);
                     
 
                     //if the packet is corrupt, drop the packet
                     //TODO: DELETE isCorrupt FROM EVERY OTHER PART OF THE CODE
                     if(RTPacket.isCorrupt(deep_cpy.getData())) {
+                        //System.out.println("corrupt..");
                         continue;
                     }
 
@@ -99,6 +109,7 @@ public class RTPStack {
                     byte[] portOfPacket = new byte[4];
                     System.arraycopy(buffer, 16, portOfPacket, 0, portOfPacket.length);
                     int port_num = RTPacket.byteToInt(portOfPacket);
+                    //System.out.println("port " + port_num);
 
                     
                     //we now check every packet to see if it is a FIN
@@ -107,18 +118,29 @@ public class RTPStack {
                     int fin = RTPacket.byteToInt(flags);
                         
                     if((fin & 1) == 1) {
-                        
+                        if((fin & 16) == 16) {
+                            synchronized(recvQ) {
+                                recvQ.get(port_num).put(deep_cpy);
+                            }
+                            //recvQ.get(port_num).put(deep_cpy);
+                            continue;
+                        }
                         //this is the first time we have seen a FIN for this connection
                         if(closeThreads.get(port_num) == null) {
                             RTPacket finack = new RTPacket(-1, 0, 0, new String[]{"FIN","ACK"}, null);
+                            //System.out.println("port number = " + port_num);
                             finack.setConnectionID(port_num);
                             finack.updateChecksum();
-                            udp_pkt.setData(finack.toByteForm());
-                            sendQ.put(udp_pkt);
+                            byte[] fin_ack = finack.toByteForm();
+                            DatagramPacket finAck = new DatagramPacket(fin_ack, fin_ack.length, udp_pkt.getAddress(), udp_pkt.getPort());
+                            //System.out.println("fin|ack sent..");
+                            sendQ.put(finAck);
                             
                             //We spawn a new thread so that it checks for ACKS               
                             CloseThread ct = new CloseThread(port_num);
-                            new Thread(ct).start();
+                            Thread closer = new Thread(ct);
+                            closer.setDaemon(true);
+                            closer.start();
                             closeThreads.put(port_num, ct);                
                         }
                     
@@ -127,17 +149,20 @@ public class RTPStack {
                     }
 
                     //is the packet from a established connection or not?
-                    if(recvQ.get(port_num) == null) {
-                        unestablished.put(deep_cpy);
-                    } else {
-                        recvQ.get(port_num).put(deep_cpy);
+                    synchronized(recvQ) {
+                        if(recvQ.get(port_num) == null) {
+                            unestablished.put(deep_cpy);
+                        } else {
+                            //System.out.println("made it to socket..");
+                            recvQ.get(port_num).put(deep_cpy);
+                        }
+                        //buffer = new byte[1000];
                     }
-
 
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (Exception e) {
-                    throw new RuntimeException("The udp socket caused an IOException.");
+                    //e.printStackTrace();
                 }
 
             }
@@ -155,17 +180,16 @@ public class RTPStack {
             while(true) {
 
                 try {
+                    DatagramPacket send_pkt;
+                    send_pkt = sendQ.poll();
 
-                    DatagramPacket send_pkt = sendQ.take();
+                    if(send_pkt != null) {
+                        socket.send(send_pkt); // convert to datagram packet
+                    }
 
-                    socket.send(send_pkt); // convert to datagram packet
-
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-
             }
 
         }
@@ -193,15 +217,20 @@ public class RTPStack {
             while(isRunning) {
 
                 try{
-                    DatagramPacket dgm_pkt = recvQ.get(port).poll();
+                    DatagramPacket dgm_pkt;
+                    synchronized(recvQ) {
+                        dgm_pkt = recvQ.get(port).poll();
+                    }
                     
                     if(dgm_pkt != null) {
                         RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgm_pkt.getData());
                         String[] flags = rtp_pkt.getFlags();
                         int seq_num = rtp_pkt.seq_num();
                         if(flags[4].equals("ACK") && seq_num == -1) {
-                            recvQ.remove(port);
-                            kill();
+                            synchronized(recvQ) {
+                                recvQ.remove(port);
+                            }
+                            this.kill();
                         }
                     }
 
@@ -215,6 +244,8 @@ public class RTPStack {
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                } catch (NullPointerException e) {
+                    this.kill();
                 }
             }
 
