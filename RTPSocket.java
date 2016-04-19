@@ -430,7 +430,7 @@ public class RTPSocket {
             }
 
         } catch (NullPointerException e) {
-            if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
+            if(RTPStack.recvQ.get(port) == null) System.out.println("The connection was closed by recipient");
             //delete the recvQ for this socket
             System.out.println("?");
             RTPStack.recvQ.remove(port);

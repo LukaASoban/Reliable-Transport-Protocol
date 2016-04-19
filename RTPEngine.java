@@ -23,12 +23,12 @@ public class RTPEngine {
 		System.out.println("Successfully accepted a connection!");
 
 
-		byte[] receive_buffer = new byte[11000];
+		byte[] receive_buffer = new byte[12000];
 
 		System.out.println("Accepted..");
 		int bytesRead = 0;
 		// client_socket.receive(receive_buffer, 0, receive_buffer.length);
-		while(bytesRead < 11000) {
+		while(bytesRead < 12000) {
 			System.out.println("Here we are");
 			bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
 			System.out.println(bytesRead);

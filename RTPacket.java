@@ -37,11 +37,7 @@ public class RTPacket {
 
 		this.seq_num = seq_num;
 
-		if(ack_num != 0) {
-			setAck(ack_num);
-		} else {
-			this.ack_num = -1;
-		}
+		this.ack_num = ack_num;
 
 		this.window_size = window_size;
 
@@ -125,10 +121,7 @@ public class RTPacket {
 	}
 
 	public int getAck() {
-		if((flags & ACK) == ACK) {
-			return ack_num;
-		}
-		return -1;
+		return ack_num;
 	}
 
 	public void setData(byte[] buffer, int off, int len) {

@@ -17,14 +17,14 @@ public class PTServer {
 		server_socket.init(server_IP, 8591);
 
 		while(true) {
-			receive_buffer = new byte[12000];
+			receive_buffer = new byte[480000];
 
 			client_socket = new RTPSocket(server_IP, 8591);
 			client_socket.accept();
 			System.out.println("Accepted..");
 			int bytesRead = 0;
 			// client_socket.receive(receive_buffer, 0, receive_buffer.length);
-			while(bytesRead < 12000) {
+			while(bytesRead < 480000) {
 				bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
 				System.out.println(bytesRead);
 			}
