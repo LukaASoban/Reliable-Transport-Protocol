@@ -152,48 +152,54 @@ public class RTPSocket {
             DatagramPacket synPacket = new DatagramPacket(buf, buf.length, serverIP, serverPort);
             RTPStack.sendQ.put(synPacket);
 
-            // timelog = System.currentTimeMillis();
+            System.out.println("Sent a SYN");
 
-            // while(true) {
-            //     DatagramPacket dgrm_pkt = RTPStack.unestablished.poll();
+            timelog = System.currentTimeMillis();
 
-            //     /* THE SYN HAS TIMED OUT*/
-            //     if(System.currentTimeMillis() - timelog > timeout) {
-            //         RTPStack.sendQ.put(synPacket);
-            //         timelog = System.currentTimeMillis();
-            //     }
+            while(true) {
+                DatagramPacket dgrm_pkt = RTPStack.unestablished.poll();
 
-            //     //is the syn corrupt?
-            //     if(dgrm_pkt == null || RTPacket.isCorrupt(dgrm_pkt.getData())) {
-            //         continue;
-            //     }
+                /* THE SYN HAS TIMED OUT*/
+                if(System.currentTimeMillis() - timelog > timeout) {
+                    RTPStack.sendQ.put(synPacket);
+                    timelog = System.currentTimeMillis();
+                }
 
-            //     //take the data from datagram and convert into RTPacket
-            //     RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
-            //     String[] flags = rtp_pkt.getFlags();
-            //     if(flags[1].equals("SYN") && flags[4].equals("ACK")) {
+                //is the syn corrupt?
+                if(dgrm_pkt == null) {
+                    continue;
+                }
 
-            //         //look at the port number - we will always communicate to the server with this port
-            //         port = rtp_pkt.connectionID();
+                //take the data from datagram and convert into RTPacket
+                RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                String[] flags = rtp_pkt.getFlags();
+                if(flags[1].equals("SYN") && flags[4].equals("ACK")) {
 
-            //         RTPacket ack = new RTPacket(1, 0, 0, new String[]{"ACK"}, null);
-            //         ack.setConnectionID(port);
-            //         ack.updateChecksum();
-            //         dgrm_pkt.setData(ack.toByteForm());
-            //         RTPStack.sendQ.put(dgrm_pkt);
+                    System.out.println("Got a SYN-ACK");
 
-            //         timelog = System.currentTimeMillis();
-            //         while(System.currentTimeMillis() - timelog < (long)600) {
+                    //look at the port number - we will always communicate to the server with this port
+                    port = rtp_pkt.connectionID();
 
-            //             if(RTPStack.unestablished.peek() != null) {
-            //                 continue;
-            //             }
-            //         }
+                    RTPacket ack = new RTPacket(1, 0, 0, new String[]{"ACK"}, null);
+                    ack.setConnectionID(port);
+                    ack.updateChecksum();
+                    dgrm_pkt.setData(ack.toByteForm());
+                    RTPStack.sendQ.put(dgrm_pkt);
 
-            //         return;
-            //     }
+                    System.out.println("SENT an ACK");
 
-            // }
+                    timelog = System.currentTimeMillis();
+                    while(System.currentTimeMillis() - timelog < (long)600) {
+
+                        if(RTPStack.unestablished.peek() != null) {
+                            continue;
+                        }
+                    }
+
+                    return;
+                }
+
+            }
         } catch (NullPointerException e) {
             e.printStackTrace();
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
@@ -226,8 +232,6 @@ public class RTPSocket {
 
                 if(dgrm_pkt != null) {
 
-                    System.out.println("hereereeeeeeeeeeeeee");
-
                     // Need this data for whenever I make a new SYN ACK in the next while loop
                     this.destAddr = dgrm_pkt.getAddress();
                     this.destPort = dgrm_pkt.getPort();
@@ -237,11 +241,11 @@ public class RTPSocket {
                     //take the data from datagram and convert into RTPacket
                     RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
 
-                    System.out.println(" SENDING: seq_num: " + rtp_pkt.seq_num() + "flags" + Arrays.toString(rtp_pkt.getFlags()));
-
                     String[] flags = rtp_pkt.getFlags();
 
                     if(flags[1].equals("SYN") && rtp_pkt.seq_num() == 0) {
+
+                        System.out.println("Got a SYN");
                         flags[4] = "ACK";
                         rtp_pkt.setFlags(flags);
                         port = RTPStack.available_ports.remove();
@@ -250,47 +254,50 @@ public class RTPSocket {
                         dgrm_pkt.setData(rtp_pkt.toByteForm());
                         RTPStack.createQueue(port);
                         RTPStack.sendQ.put(dgrm_pkt);
-                        System.err.println("Send a SYN ACK");
+
+                        System.out.println("Sending a SYN-ACK");
                         break;
                     } 
                 }
             }
-            return;
-            // timelog = System.currentTimeMillis();
-            // while(true) {
-            //     DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
+            timelog = System.currentTimeMillis();
+            while(true) {
+                DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
-            //     if(dgrm_pkt != null) {        
+                if(dgrm_pkt != null) {        
 
-            //         RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
-            //         String[] flags = rtp_pkt.getFlags();
+                    RTPacket rtp_pkt = RTPacket.makeIntoPacket(dgrm_pkt.getData());
+                    String[] flags = rtp_pkt.getFlags();
 
-            //         if(flags[4].equals("ACK") && rtp_pkt.seq_num() == 1) {
-            //             nextSeqNum = 2;
+                    if(flags[4].equals("ACK") && rtp_pkt.seq_num() == 1) {
+                        nextSeqNum = 2;
 
-            //             //get the ip and port from where this packet comes from
-            //             this.destAddr = dgrm_pkt.getAddress();
-            //             this.destPort = dgrm_pkt.getPort();
+                        System.out.println("GOT an ACK!!!!");
 
-            //             return;
-            //         } else {
-            //             //not sure
-            //         }
-            //     }
-            //     // if(System.currentTimeMillis() - timelog > (long)600) {
-            //     //     RTPacket synAck = new RTPacket(0, 0, recvSlidingWnd, new String[]{"SYN","ACK"}, null);
-            //     //     synAck.setConnectionID(port);
-            //     //     synAck.updateChecksum();
-            //     //     byte[] toSend = synAck.toByteForm();
+                        //get the ip and port from where this packet comes from
+                        this.destAddr = dgrm_pkt.getAddress();
+                        this.destPort = dgrm_pkt.getPort();
 
-            //     //     //* Since this is in the if statement only for time we need to send a new SYN ACK with known address*/
-            //     //     dgrm_pkt = new DatagramPacket(toSend, toSend.length, destAddr, destPort);
-            //     //     // dgrm_pkt.setData(toSend);
-            //     //     RTPStack.sendQ.put(dgrm_pkt);
-            //     //     timelog = System.currentTimeMillis();
-            //     // }
+                        return;
+                    } else {
+                        //not sure
+                    }
+                }
+                if(System.currentTimeMillis() - timelog > (long)600) {
+                    RTPacket synAck = new RTPacket(0, 0, recvSlidingWnd, new String[]{"SYN","ACK"}, null);
+                    synAck.setConnectionID(port);
+                    synAck.updateChecksum();
+                    byte[] toSend = synAck.toByteForm();
+
+                    //* Since this is in the if statement only for time we need to send a new SYN ACK with known address*/
+                    dgrm_pkt = new DatagramPacket(toSend, toSend.length, destAddr, destPort);
+                    // dgrm_pkt.setData(toSend);
+                    RTPStack.sendQ.put(dgrm_pkt);
+
+                    timelog = System.currentTimeMillis();
+                }
                 
-            // }
+            }
 
         } catch (NullPointerException e) {
             e.printStackTrace();

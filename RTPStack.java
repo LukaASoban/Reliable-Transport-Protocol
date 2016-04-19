@@ -100,7 +100,6 @@ public class RTPStack {
                     System.arraycopy(buffer, 16, portOfPacket, 0, portOfPacket.length);
                     int port_num = RTPacket.byteToInt(portOfPacket);
 
-                    System.out.println("Port: " + port_num + " flags: ");
                     
                     //we now check every packet to see if it is a FIN
                     byte[] flags = new byte[4];
