@@ -6,7 +6,7 @@ import java.util.zip.Checksum;
 
 public class RTPacket {
 	
-	private static final int HEADER_LENGTH = 32; //int x 6 + long = 28 bytes | data starts after
+	public static final int HEADER_LENGTH = 32; //int x 6 + long = 28 bytes | data starts after
 	private static final int FIN = 1 << 0;
 	private static final int SYN = 1 << 1;
 	private static final int RST = 1 << 2;
@@ -112,6 +112,13 @@ public class RTPacket {
 		return length;
 	}
 
+	public int data_length() {
+		if(data == null) {
+			return 0;
+		}
+		return data.length;
+	}
+
 	public void setAck(int ack_num) {
 		flags |= ACK;
 		this.ack_num = ack_num;
@@ -182,7 +189,7 @@ public class RTPacket {
 	public byte[] toByteForm() {
 
 		/*
-		 *	flags | seq_num | ack_num | window_size | connectionID | checksum | lengthofpacket
+		 *	flags | seq_num | ack_num | window_size | connectionID | checksum | length of data
 		 */
 		byte[] buffer = new byte[length()];
 		byte[] b_flags = intToByte(flags);
@@ -190,7 +197,7 @@ public class RTPacket {
 		byte[] b_ack = intToByte(ack_num);
 		byte[] b_window = intToByte(window_size);
 		byte[] b_checksum = longToByteArray(checksum);
-		byte[] b_length = intToByte(data.length);
+		byte[] b_length = intToByte(data_length());
 		byte[] b_ID = intToByte(connectionID);
 
 		for (int i = 0; i < 4; i++) {

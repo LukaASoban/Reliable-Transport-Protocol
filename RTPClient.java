@@ -9,8 +9,6 @@ public class RTPClient {
 		RTPStack rtpStack = new RTPStack();
 		rtpStack.init(null, 9000); // 9000 is the client port number
 
-		System.out.println("Client run until here"); 
-
 		RTPSocket socket = new RTPSocket(null, 8591);
 
 		InetAddress serverAddress = InetAddress.getByName("127.0.0.1");
@@ -22,9 +20,9 @@ public class RTPClient {
 			System.out.println("Error occured in connect");
 		}
 
-		while(true) {
-			System.out.println("Successfully connected!");
-		}
+		
+		System.out.println("Success in connection");
+	
 
 		// String s = "FUCK";
 		// byte[] toSend = s.getBytes();

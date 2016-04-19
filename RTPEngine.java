@@ -7,8 +7,6 @@ public class RTPEngine {
 		
 		RTPStack rtpStack = new RTPStack();
 		rtpStack.init(null, 8591); // initialize the stack aka the send and recv threads
-
-		System.out.println("Ran once"); 
 		
 
 		RTPSocket socket = new RTPSocket(null, 8591);
@@ -21,9 +19,8 @@ public class RTPEngine {
 		}
 
 
-		while (true) {
-			System.out.println("Successfully accepted a connection!");
-		}
+		
+		System.out.println("Successfully accepted a connection!");
 
 		// byte[] message = new byte[4];
 

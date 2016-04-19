@@ -1,5 +1,6 @@
 import java.util.concurrent.*;
 import java.util.LinkedList;
+import java.util.Arrays;
 import java.net.*;
 import java.io.*;
 
@@ -9,10 +10,10 @@ public class RTPStack {
     private DatagramSocket socket;
     private DatagramPacket udp_pkt;
 
-    protected static ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>> recvQ;
+    protected static ConcurrentHashMap<Integer, LinkedBlockingQueue<DatagramPacket>> recvQ;
     protected ConcurrentHashMap<Integer, CloseThread> closeThreads;
-    protected static BlockingQueue<DatagramPacket> sendQ;
-    protected static BlockingQueue<DatagramPacket> unestablished;
+    protected static LinkedBlockingQueue<DatagramPacket> sendQ;
+    protected static LinkedBlockingQueue<DatagramPacket> unestablished;
     protected static LinkedList<Integer> available_ports;
 
 
@@ -22,7 +23,7 @@ public class RTPStack {
 
             buffer = new byte[1000];
             socket = new DatagramSocket(port);
-            recvQ = new ConcurrentHashMap<Integer, BlockingQueue<DatagramPacket>>();
+            recvQ = new ConcurrentHashMap<Integer, LinkedBlockingQueue<DatagramPacket>>();
             sendQ = new LinkedBlockingQueue<DatagramPacket>();
             unestablished = new LinkedBlockingQueue<DatagramPacket>();
             closeThreads = new ConcurrentHashMap<Integer, CloseThread>();
@@ -34,7 +35,7 @@ public class RTPStack {
                 available_ports.add(i);
             }
 
-            //This is where the recv and send threads will start running/////////////////TODO TODO TODO TODO////////////////////////////////////////////////
+            //This is where the recv and send threads will start running
             RecvThread recvthread = new RecvThread();
             SendThread sendthread = new SendThread();
             Thread r = new Thread(recvthread);
@@ -53,7 +54,7 @@ public class RTPStack {
 
     /* This method creates a new queue for the hashmap given a port number*/
     public static void createQueue(int port) {
-        BlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<DatagramPacket>();
+        LinkedBlockingQueue<DatagramPacket> queue = new LinkedBlockingQueue<DatagramPacket>();
         recvQ.put(port, queue);
     }
 
@@ -70,18 +71,34 @@ public class RTPStack {
                 try{
                     
                     socket.receive(udp_pkt); //get a new packet
+
+                    //get the length of the actual packet (buffer - length of packet)
+                    byte[] l = new byte[4];
+                    System.arraycopy(buffer, 28, l, 0, 4);
+                    int lenOfData = RTPacket.byteToInt(l);
+                    lenOfData += RTPacket.HEADER_LENGTH;
+
+                    //here i set the data to the correct size (buffer to end of rtppacket)
+                    l = new byte[lenOfData];
+                    System.arraycopy(buffer, 0, l, 0, l.length);
+                    udp_pkt.setData(l);
+
                     
+
                     //if the packet is corrupt, drop the packet
                     //TODO: DELETE isCorrupt FROM EVERY OTHER PART OF THE CODE
                     if(RTPacket.isCorrupt(udp_pkt.getData())) {
                         continue;
                     }
 
+                    
                     //Everytime we get a packet we check its port num to see where the packet 
                     //will go for that particular connection in a recv queue
                     byte[] portOfPacket = new byte[4];
-                    System.arraycopy(buffer, 28, portOfPacket, 0, portOfPacket.length);
+                    System.arraycopy(buffer, 16, portOfPacket, 0, portOfPacket.length);
                     int port_num = RTPacket.byteToInt(portOfPacket);
+
+                    System.out.println("Port: " + port_num + " flags: ");
                     
                     //we now check every packet to see if it is a FIN
                     byte[] flags = new byte[4];
@@ -117,7 +134,7 @@ public class RTPStack {
 
 
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    e.printStackTrace();
                 } catch (Exception e) {
                     throw new RuntimeException("The udp socket caused an IOException.");
                 }
@@ -139,12 +156,13 @@ public class RTPStack {
                 try {
 
                     DatagramPacket send_pkt = sendQ.take();
+
                     socket.send(send_pkt); // convert to datagram packet
 
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    e.printStackTrace();
                 } catch (IOException e) {
-                    //run again
+                    e.printStackTrace();
                 }
 
             }
