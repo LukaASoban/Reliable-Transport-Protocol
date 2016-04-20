@@ -13,7 +13,7 @@ public class PTClient {
 		byte[] response = new byte[12];
 
 		InetAddress client_IP = InetAddress.getByName("127.0.0.1");
-		InetAddress server_IP = InetAddress.getByName("192.168.1.215");
+		InetAddress server_IP = InetAddress.getByName("127.0.0.1");
 
 		RTPStack client = new RTPStack();
 		client.init(client_IP, 9342);
