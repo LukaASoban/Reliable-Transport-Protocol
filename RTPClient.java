@@ -11,7 +11,7 @@ public class RTPClient {
 
 		RTPSocket socket = new RTPSocket(null, 8591);
 
-		InetAddress serverAddress = InetAddress.getByName("127.0.0.1");
+		InetAddress serverAddress = InetAddress.getByName("192.168.1.215");
 
 		//get the client connection
 		socket.connect(serverAddress, 8591);
