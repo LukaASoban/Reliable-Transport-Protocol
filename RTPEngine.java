@@ -29,10 +29,18 @@ public class RTPEngine {
 		int bytesRead = 0;
 		// client_socket.receive(receive_buffer, 0, receive_buffer.length);
 		while(bytesRead < 12000) {
-			System.out.println("Here we are");
 			bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
 			System.out.println(bytesRead);
 		}
+
+
+		bytesRead = 0;
+		// client_socket.receive(receive_buffer, 0, receive_buffer.length);
+		while(bytesRead < 12000) {
+			bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
+			System.out.println(bytesRead);
+		}
+
 
 
 

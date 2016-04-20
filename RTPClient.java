@@ -27,6 +27,7 @@ public class RTPClient {
 
 		
 		socket.send(toSend);
+		socket.send(toSend);
 
 		System.out.println("we sent successfully");
 	

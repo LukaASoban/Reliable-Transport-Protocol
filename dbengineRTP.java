@@ -8,12 +8,12 @@ import java.io.*;
 import java.util.Collections; 
 import java.util.HashMap; 
 
-public class dbengineTCP {
+public class dbengineRTP {
 
 	private static final int BUFFERSIZE = 256;
 	private static HashMap<String, Student> database = new HashMap<String, Student>();
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 
 
 		initialize(); //setup the database
