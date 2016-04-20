@@ -1,17 +1,13 @@
 /*
 	LUKA ANTOLIC-SOBAN
 	RDBA Client
-
 */
-import java.net.Socket;
-import java.net.SocketException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.net.*;
+import java.io.*;
 
 public class dbclientRTP {
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		
 		//checking for valid command line arguments
 		if(args.length < 3 || args.length > 7) {
@@ -22,6 +18,8 @@ public class dbclientRTP {
 
 		String[] parts = args[0].split(":");
 		String server = parts[0]; //Server IP address
+
+		InetAddress serverAddress = InetAddress.getByName(server);
 
 		int serverPort = Integer.parseInt(parts[1]);
 
@@ -37,43 +35,23 @@ public class dbclientRTP {
 
 		//converting the query into bytes
 		byte[] queryToSend = query.getBytes();
-		byte[] querySize = toBytes(queryToSend.length);
 
 		//Creating the socket to connect to the server via TCP
 
-		Socket socket = new Socket(server, serverPort);
+		RTPStack rtp_server = new RTPStack();
+		rtp_server.init(null, 0);
 
-		InputStream in = socket.getInputStream();
-		OutputStream out = socket.getOutputStream();
+		RTPSocket socket = new RTPSocket(null, 0);
+		socket.connect(serverAddress,serverPort);
 
-		out.write(querySize); //First send the file size so that other end knows
-		out.write(queryToSend); //Sending the query to the server
+		socket.send(queryToSend); //Sending the query to the server
 
-		/* FIRST GRABBING THE LENGTH OF THE QUERY*/
-		int totalBytesRcvd = 0;
-		int bytesRcvd;
-		byte[] l = new byte[4]; //find the length of the file to recieve
-		while(totalBytesRcvd < l.length) {
-			if((bytesRcvd = in.read(l, totalBytesRcvd, 
-						l.length - totalBytesRcvd)) == -1)
-				throw new SocketException("Connection closed prematurely");
-			totalBytesRcvd += bytesRcvd;
-		}
-		int sizeOfStream = ((l[0] & 0xFF) << 24) | ((l[1] & 0xFF) << 16)
-    					| ((l[2] & 0xFF) << 8) | (l[3] & 0xFF);
-    	/* END OF GRABBING LENGTH OF QUERY*/
 
-		byte[] resultBuff = new byte[sizeOfStream]; //byte array to hold db result
-
-		totalBytesRcvd = 0;		
-		while(totalBytesRcvd < resultBuff.length) {
-			if((bytesRcvd = in.read(resultBuff, totalBytesRcvd, 
-							resultBuff.length - totalBytesRcvd)) == -1)
-				throw new SocketException("Connection closed prematurely");
-			totalBytesRcvd += bytesRcvd;
-		}//the result array is full
+		byte[] queryBuff = new byte[256]; //byte array to hold db query
+		int bytesRead = 0;
+		socket.receive(queryBuff, bytesRead, queryBuff.length - bytesRead);
 	    
-	    System.out.println(new String(resultBuff));
+	    System.out.println(new String(queryBuff));
 
 		socket.close(); //release resources
 

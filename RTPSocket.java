@@ -510,7 +510,6 @@ public class RTPSocket {
                 //get the packet from the recv queue
                 DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
                 
-
                 if(dgrm_pkt != null) {
 
                     //take the data from datagram and convert into RTPacket
