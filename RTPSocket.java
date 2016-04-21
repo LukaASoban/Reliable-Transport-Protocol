@@ -97,6 +97,7 @@ public class RTPSocket {
                     ack.setConnectionID(port);
                     ack.updateChecksum();
                     dgrm_pkt.setData(ack.toByteForm());
+                    System.out.println("final ack sent..");
                     RTPStack.sendQ.put(dgrm_pkt);
     
                     timelog = System.currentTimeMillis();
@@ -336,12 +337,13 @@ public class RTPSocket {
         try{
 
             if(isCLOSED) {
-                throw new IOException("The socket is already closed!");
+                //throw new IOException("The socket is already closed!");
+                return -1;
             }
             recv_buffer = new byte[10000];
             DatagramPacket dgrm_pkt;
             while(true) {
-                //System.out.println(port);
+                //System.out.println("port" + port);
                 //get the packet from the recv queue
                 dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
@@ -433,7 +435,7 @@ public class RTPSocket {
             System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
-            e.printStackTrace();
+            //e.printStackTrace();
             isCLOSED = true;
         } catch (InterruptedException ie) {
             throw ie;

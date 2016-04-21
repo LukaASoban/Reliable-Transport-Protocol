@@ -6,7 +6,7 @@ import java.io.IOException;
 
 public class fta_client {
 	public static void main(String[] args) throws IOException, InterruptedException {
-		final int GET = 0;
+		final int GET = 9;
 		final int GET_POST = 17;
 		int server_port;
 		int MAX_RCVWND_SIZE;
@@ -29,9 +29,9 @@ public class fta_client {
 			InetAddress server_IP = InetAddress.getByName(args[0].substring(0, colon_index));
 
 			RTPStack client = new RTPStack();
-			client.init(client_IP, 9342);
+			client.init(client_IP, 0);
 
-			RTPSocket client_socket = new RTPSocket(client_IP, 9342);
+			RTPSocket client_socket = new RTPSocket(client_IP, 0);
 			client_socket.connect(server_IP, server_port);
 
 			while(!done) {
@@ -44,7 +44,6 @@ public class fta_client {
 
 
 				if(command.equals("get")) {
-					System.out.println(Runtime.getRuntime().freeMemory());
 					byte[] bytes_getRequest = new byte[5];
 					bytes_getRequest[0] = GET;
 
@@ -69,7 +68,8 @@ public class fta_client {
 						bytesRead += client_socket.receive(size, bytesRead, size.length - bytesRead);
 					}
 					FileUtils.writeByteArrayToFile(new File("file.jpg"), size);
-					System.out.println(Runtime.getRuntime().freeMemory());
+				} else if(command.equals("get-post")){
+
 				} else if(prompt.equals("disconnect")) {
 					client_socket.close();
 					done = true;
