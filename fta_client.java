@@ -44,6 +44,7 @@ public class fta_client {
 
 
 				if(command.equals("get")) {
+					System.out.println(Runtime.getRuntime().freeMemory());
 					byte[] bytes_getRequest = new byte[5];
 					bytes_getRequest[0] = GET;
 
@@ -67,7 +68,8 @@ public class fta_client {
 					while(bytesRead < length) {
 						bytesRead += client_socket.receive(size, bytesRead, size.length - bytesRead);
 					}
-					FileUtils.writeByteArrayToFile(new File("file.txt"), size);
+					FileUtils.writeByteArrayToFile(new File("file.jpg"), size);
+					System.out.println(Runtime.getRuntime().freeMemory());
 				} else if(prompt.equals("disconnect")) {
 					client_socket.close();
 					done = true;
