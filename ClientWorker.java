@@ -1,10 +1,12 @@
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.*;
+import org.apache.commons.io.IOUtils;
 
 public class ClientWorker implements Runnable {
 	private RTPSocket client_socket;
-	private BlockingQueue<Path> uploadQueue = new ArrayBlockingQueue<>(16);
+	final int GET = 9;
+	final int GET_POST = 17;
 
 	public ClientWorker(RTPSocket client) throws IOException {
 		this.client_socket = client;
