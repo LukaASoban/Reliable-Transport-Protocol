@@ -1,4 +1,4 @@
-import org.apache.commons.io.*;
+import org.apache.commons.io.FileUtils;
 import java.util.Scanner;
 import java.net.*;
 import java.io.File;
