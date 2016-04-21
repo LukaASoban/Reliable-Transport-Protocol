@@ -32,6 +32,7 @@ public class fta_client {
 			client.init(client_IP, 0);
 
 			RTPSocket client_socket = new RTPSocket(client_IP, 0);
+			client_socket.setWindowSize(MAX_RCVWND_SIZE);
 			client_socket.connect(server_IP, server_port);
 
 			while(!done) {

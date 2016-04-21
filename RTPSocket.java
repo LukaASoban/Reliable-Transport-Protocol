@@ -62,6 +62,14 @@ public class RTPSocket {
         // clientMap = new HashMap<SocketAddress, Connection>();
         // closed = false;
     }
+
+    public int setWindowSize(int window_size) {
+        this.recvSlidingWnd = window_size / MAX_PCKT_SIZE;
+        if(window_size % MAX_PCKT_SIZE != 0) {
+            this.recvSlidingWnd++;
+        }
+        return recvSlidingWnd;
+    }
     
     
     public void close() throws InterruptedException {

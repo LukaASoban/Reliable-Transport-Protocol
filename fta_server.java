@@ -32,55 +32,62 @@ public class fta_server {
 
 			while(true) {
 				client_socket = new RTPSocket(me, server_port);
+				client_socket.setWindowSize(MAX_RCVWND_SIZE);
 				client_socket.accept();
-				client_done = false;
 
-				while(!client_done) {
+				ClientWorker worker = new ClientWorker(client_socket);
+				Thread w = new Thread(worker);
+				w.setDaemon(true);
+				w.start();
+				// client_done = false;
 
-					byte[] request = new byte[5];
-					int bytesRead = 0;
+				// while(!client_done) {
 
-					while(bytesRead < request.length && bytesRead != -1) {
-						bytesRead += client_socket.receive(request, bytesRead, request.length - bytesRead);
-						System.out.println("stuck");
-					}
+				// 	byte[] request = new byte[5];
+				// 	int bytesRead = 0;
 
-					byte[] filename_length = new byte[4];
-					byte[] get_post = new byte[1];
+				// 	while(bytesRead < request.length && bytesRead != -1) {
+				// 		bytesRead += client_socket.receive(request, bytesRead, request.length - bytesRead);
+				// 		System.out.println("stuck");
+				// 	}
 
-					System.arraycopy(request, 1, filename_length, 0, filename_length.length);
+				// 	byte[] filename_length = new byte[4];
+				// 	byte[] get_post = new byte[1];
 
-					int get_post_value = request[0];
-					int filename_length_value = RTPacket.byteToInt(filename_length);
+				// 	System.arraycopy(request, 1, filename_length, 0, filename_length.length);
 
-					byte[] filename = new byte[filename_length_value];
-					bytesRead = 0;
-					while(bytesRead < filename_length_value && bytesRead != -1) {
-						bytesRead += client_socket.receive(filename, bytesRead, filename.length - bytesRead);
-						System.out.println(bytesRead);
-					}
-					System.out.println("received");
+				// 	int get_post_value = request[0];
+				// 	int filename_length_value = RTPacket.byteToInt(filename_length);
 
-					if(get_post_value == GET) {
-						String file = new String(filename);
-						System.out.println(file);
-						File filepath = new File(file);
-						FileInputStream file_stream = new FileInputStream(filepath);
-						byte[] filebytes = IOUtils.toByteArray(file_stream);
-						int size_of_file = filebytes.length;
+				// 	byte[] filename = new byte[filename_length_value];
+				// 	bytesRead = 0;
+				// 	while(bytesRead < filename_length_value && bytesRead != -1) {
+				// 		bytesRead += client_socket.receive(filename, bytesRead, filename.length - bytesRead);
+				// 		System.out.println(bytesRead);
+				// 	}
+				// 	System.out.println("received");
 
-						client_socket.send(RTPacket.intToByte(filebytes.length));
-						client_socket.send(filebytes);
-						System.out.println("complete");
-					} else if(get_post_value == GET_POST) {
+				// 	if(get_post_value == GET) {
+				// 		String file = new String(filename);
+				// 		System.out.println(file);
+				// 		File filepath = new File(file);
+				// 		FileInputStream file_stream = new FileInputStream(filepath);
+				// 		byte[] filebytes = IOUtils.toByteArray(file_stream);
+				// 		int size_of_file = filebytes.length;
 
-					} 
-					if(client_socket.isClosed()) {
-						client_done = true;
-						
-					}
-				}
+				// 		client_socket.send(RTPacket.intToByte(filebytes.length));
+				// 		client_socket.send(filebytes);
+				// 		System.out.println("complete");
+				// 	} else if(get_post_value == GET_POST) {
+
+				// 	} 
+				// 	if(client_socket.isClosed()) {
+				// 		client_done = true;
+
+				// 	}
+				// }
 			}
 		}
 	}
+
 }
