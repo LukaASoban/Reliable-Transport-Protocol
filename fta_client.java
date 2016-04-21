@@ -57,7 +57,7 @@ public class fta_client {
 
 					byte[] length_of_file = new byte[4];
 					int bytesRead = 0;
-					while(bytesRead < length_of_file.length) {
+					while(bytesRead < length_of_file.length && bytesRead != -1) {
 						bytesRead += client_socket.receive(length_of_file, bytesRead, length_of_file.length - bytesRead);
 					}
 					System.out.println("received");

@@ -77,6 +77,7 @@ public class fta_server {
 					} 
 					if(client_socket.isClosed()) {
 						client_done = true;
+						
 					}
 				}
 			}
