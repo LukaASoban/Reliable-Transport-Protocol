@@ -118,9 +118,7 @@ public class RTPStack {
                     int fin = RTPacket.byteToInt(flags);
                         
                     if((fin & 1) == 1) {
-                        System.out.println("fin received..");
                         if((fin & 16) == 16) {
-                            System.out.println("fin | ack recieved..");
                             synchronized(recvQ) {
                                 recvQ.get(port_num).put(deep_cpy);
                             }
@@ -219,11 +217,9 @@ public class RTPStack {
             while(isRunning) {
 
                 try{
-                    System.out.println("waiting to close..");
                     DatagramPacket dgm_pkt;
                     synchronized(recvQ) {
                         dgm_pkt = recvQ.get(port).poll();
-                        System.out.println("removing");
                     }
                     
                     if(dgm_pkt != null) {
@@ -231,11 +227,9 @@ public class RTPStack {
                         String[] flags = rtp_pkt.getFlags();
                         int seq_num = rtp_pkt.seq_num();
                         if(flags[4].equals("ACK") && seq_num == -1) {
-                            System.out.println("removng que..");
                             synchronized(recvQ) {
                                 recvQ.remove(port);
                             }
-                            System.out.println("killed..");
                             this.kill();
                         }
                     }

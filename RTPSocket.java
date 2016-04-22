@@ -105,7 +105,6 @@ public class RTPSocket {
                     ack.setConnectionID(port);
                     ack.updateChecksum();
                     dgrm_pkt.setData(ack.toByteForm());
-                    System.out.println("final ack sent..");
                     RTPStack.sendQ.put(dgrm_pkt);
     
                     timelog = System.currentTimeMillis();
@@ -141,7 +140,6 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("recvq closed..");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -224,7 +222,6 @@ public class RTPSocket {
             e.printStackTrace();
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -327,7 +324,6 @@ public class RTPSocket {
             e.printStackTrace();
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -440,7 +436,6 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection was closed by recipient");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             //e.printStackTrace();
@@ -531,9 +526,6 @@ public class RTPSocket {
                     int ack_num = rtp_pkt.getAck();
                     int flags_num = rtp_pkt.flags();
                     //System.out.println("(Received) flags: " + flags_num);
-                    System.out.println("Ack Number: " + ack_num);
-                    System.out.println("Send base: " + send_base);
-                    System.out.println("last packet: " + last_packet);
                     //System.out.println(Arrays.toString(flags));
 
                     if(ack_num != -1) {
@@ -545,7 +537,6 @@ public class RTPSocket {
                                 if(send_base + sendSlidingWnd < last_packet) {
                                     System.out.println("Packet Sent: " + (send_base + sendSlidingWnd));
                                     RTPStack.sendQ.put(send_buffer.get(send_base+sendSlidingWnd));
-                                    System.out.println(RTPStack.sendQ.size());
                                 }
                                 packets_acked++;
                                 send_base++;
@@ -590,7 +581,6 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             e.printStackTrace();

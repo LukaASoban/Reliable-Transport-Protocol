@@ -24,7 +24,6 @@ public class ClientWorker implements Runnable {
 
 					while(bytesRead < request.length && bytesRead != -1) {
 						bytesRead += client_socket.receive(request, bytesRead, request.length - bytesRead);
-						System.out.println("stuck");
 					}
 
 					byte[] filename_length = new byte[4];
@@ -39,7 +38,6 @@ public class ClientWorker implements Runnable {
 					bytesRead = 0;
 					while(bytesRead < filename_length_value && bytesRead != -1) {
 						bytesRead += client_socket.receive(filename, bytesRead, filename.length - bytesRead);
-						System.out.println(bytesRead);
 					}
 					System.out.println("received");
 
