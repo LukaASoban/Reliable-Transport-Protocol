@@ -60,6 +60,7 @@ public class RTPacket {
 
 
 	public long updateChecksum() {
+		this.checksum = 0;
 		byte[] temp = this.toByteForm();
 		crc32.update(temp);
 		checksum = crc32.getValue();
