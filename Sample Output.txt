@@ -1,0 +1,110 @@
+*
+*
+* Sample Input and Output Combinations:
+* =====================================
+* =====================================
+*
+* RTP Client-Server Relay Database:
+*
+*    General Case 1    
+*    ________________________
+*
+*    Server (Input):
+*    1. lawn-128-61-47-11:documents EllisCooper$ java dbengineTCP 8591
+*
+*    Client (Input):
+*    2. lawn-128-61-32-56:documents EllisCooper$ java dbclientUDP 127.0.0.1 8591 903077650 first_name last_name
+*
+*    Client (Output):
+*    3. lawn-128-61-32-56:documents EllisCooper$ java dbclientTCP 127.0.0.1 8591 903077650 first_name last_name
+*       *** From Server ***
+*       Search ID: 903077650
+*       first_name: Joe
+*       last_name: Miller
+*
+*
+*    Error Case 1 (Insufficient Arguments)
+*    __________________________
+*
+*    Server (Input):
+*    1. lawn-128-61-47-11:documents EllisCooper$ java dbengineTCP 8591
+*
+*    Client (Input):
+*    2. lawn-128-61-32-56:documents EllisCooper$ java dbclientTCP 127.0.0.1 8591 903077650
+*
+*    Client (Output):
+*    3. lawn-128-61-32-56:documents EllisCooper$ java dbclientTCP 127.0.0.1 8591 903077650
+*       Exception in thread "main" java.lang.IllegalArgumentException: 
+*       Parameter(s):<ServerIP> <PortNumber> <SearchID> <Query1>..
+*	    at dbclientTCP.main(dbclientTCP.java:33)
+*
+*
+*    Error Case 2 (Client Unable to Connect to Server)
+*    ___________________________
+*
+*    Server (Input):
+*    1. lawn-128-61-47-11:documents EllisCooper$ java dbengineRTP 8591
+*
+*    Client (Input):
+*    2. lawn-128-61-32-56:documents EllisCooper$ java dbclientRTP 127.0.0.1:8591 903077650 first_name last_name
+*
+*    Client (Output):
+*    3. lawn-128-61-32-56:documents EllisCooper$ java dbclientTCP 127.0.0.1:8591 903077650 first_name last_name
+*
+*       **This error is thrown after a client has waited for 5 minutes to connect with the server**
+*
+*       Exception in thread "main" java.net.ConnectException: Connection refused
+*	    at java.net.PlainSocketImpl.socketConnect(Native Method)
+*	    at java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:345)
+*	    at java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:206)
+*	    at java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:188)
+*	    at java.net.SocksSocketImpl.connect(SocksSocketImpl.java:392)
+*	    at java.net.Socket.connect(Socket.java:589)
+*	    at java.net.Socket.connect(Socket.java:538)
+*	    at java.net.Socket.<init>(Socket.java:434)
+*	    at java.net.Socket.<init>(Socket.java:211)
+*	    at dbclientTCP.main(dbclientTCP.java:47)
+*
+*
+* RTP Client-Server File Transfer:
+*    
+*    General Case 1
+*    ____________________________
+*
+*    Server (Input):
+*	 1.	lawn-128-61-47-11:documents EllisCooper$ java fta_server 8591
+*    
+*    Client (Input):
+*	 2. lawn-128-61-32-56:documents EllisCooper$ java fta_client 127.0.0.1:8591 5000
+*
+*    Client (Ouput):
+*    3. Command: 
+*
+*    Client (Input):
+*    4. Command: get <filename> || get-post <filename1> <filename2>
+* 
+*    Client (Output):
+*    5. Successfully downloaded <filename> || Successfully downloaded <filename1> 
+* 											  Successfully uploaded <filename2>
+*
+*    Error Case 1 (Server Response Times Out)
+*    ____________________________
+*
+*    Server (Input): 
+*    1.	lawn-128-61-47-11:documents EllisCooper$ java fta_server 8591
+*    
+*    Client (Input):
+*    2. lawn-128-61-32-56:documents EllisCooper$ java fta_client 127.0.0.1:8591
+* 
+*    Client (Output):
+*    3. command:
+*
+*    Client (Input):
+*    4. command: get <filename> 
+*
+*    Client (Output):
+*    5. Requested file <filename> does not exist    
+*    ** Error message when requested file does not exist **
+* 	 
+* =============================================================================================
+* =============================================================================================

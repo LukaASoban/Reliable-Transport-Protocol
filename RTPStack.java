@@ -243,8 +243,12 @@ public class RTPStack {
                         timelog = System.currentTimeMillis();
                     }
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    
                 } catch (NullPointerException e) {
+                    //System.out.println("recvQ is already null..");
+                    synchronized(recvQ) {
+                        recvQ.remove(port);
+                    }
                     this.kill();
                 }
             }

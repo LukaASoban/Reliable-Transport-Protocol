@@ -1,7 +1,6 @@
 /*
 	LUKA ANTOLIC-SOBAN
 	RDBA Client
-
 */
 import java.net.*;
 import java.io.*;
@@ -36,7 +35,6 @@ public class dbclientRTP {
 
 		//converting the query into bytes
 		byte[] queryToSend = query.getBytes();
-		byte[] querySize = toBytes(queryToSend.length);
 
 		//Creating the socket to connect to the server via TCP
 
@@ -46,24 +44,12 @@ public class dbclientRTP {
 		RTPSocket socket = new RTPSocket(null, 0);
 		socket.connect(serverAddress,serverPort);
 
-		socket.send(querySize); //First send the file size so that other end knows
 		socket.send(queryToSend); //Sending the query to the server
 
-		byte[] receive_buffer = new byte[4]; //find the length of the file to recieve
+
+		byte[] queryBuff = new byte[256]; //byte array to hold db query
 		int bytesRead = 0;
-		while(bytesRead < receive_buffer.length) {
-			bytesRead += socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
-		}
-
-		int sizeOfStream = ((receive_buffer[0] & 0xFF) << 24) | ((receive_buffer[1] & 0xFF) << 16)
-        					| ((receive_buffer[2] & 0xFF) << 8) | (receive_buffer[3] & 0xFF);
-        	/* END OF GRABBING LENGTH OF QUERY*/
-
-		byte[] queryBuff = new byte[sizeOfStream]; //byte array to hold db query
-		bytesRead = 0;
-		while(bytesRead < queryBuff.length) {
-			bytesRead += socket.receive(queryBuff, bytesRead, queryBuff.length - bytesRead);
-		}
+		socket.receive(queryBuff, bytesRead, queryBuff.length - bytesRead);
 	    
 	    System.out.println(new String(queryBuff));
 

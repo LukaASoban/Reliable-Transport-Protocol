@@ -220,7 +220,6 @@ public class RTPacket {
 		}
 
 		return buffer;
-
 		
 	}
 

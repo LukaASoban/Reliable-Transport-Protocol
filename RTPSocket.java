@@ -62,6 +62,14 @@ public class RTPSocket {
         // clientMap = new HashMap<SocketAddress, Connection>();
         // closed = false;
     }
+
+    public int setWindowSize(int window_size) {
+        this.recvSlidingWnd = window_size / MAX_PCKT_SIZE;
+        if(window_size % MAX_PCKT_SIZE != 0) {
+            this.recvSlidingWnd++;
+        }
+        return recvSlidingWnd;
+    }
     
     
     public void close() throws InterruptedException {
@@ -77,12 +85,9 @@ public class RTPSocket {
             RTPStack.sendQ.put(closePacket);
             
             timelog = System.currentTimeMillis();
-            DatagramPacket dgrm_pkt;
             while(true) {
 
-                synchronized(RTPStack.recvQ) {
-                    dgrm_pkt = RTPStack.recvQ.get(port).poll();
-                }
+                DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
                 
                 //is it null?
                 if(dgrm_pkt == null) {
@@ -100,9 +105,7 @@ public class RTPSocket {
                     ack.setConnectionID(port);
                     ack.updateChecksum();
                     dgrm_pkt.setData(ack.toByteForm());
-                    synchronized(dgrm_pkt) {
-                        RTPStack.sendQ.put(dgrm_pkt);
-                    }
+                    RTPStack.sendQ.put(dgrm_pkt);
     
                     timelog = System.currentTimeMillis();
                     while(System.currentTimeMillis() - timelog < (long)600) {
@@ -137,7 +140,6 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("recvq closed..");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -189,7 +191,7 @@ public class RTPSocket {
                 String[] flags = rtp_pkt.getFlags();
                 if(flags[1].equals("SYN") && flags[4].equals("ACK")) {
 
-                    System.out.println("Got a SYN-ACK");
+                    //System.out.println("Got a SYN-ACK");
 
                     //look at the port number - we will always communicate to the server with this port
                     port = rtp_pkt.connectionID();
@@ -202,7 +204,7 @@ public class RTPSocket {
                     RTPStack.sendQ.put(dgrm_pkt);
                     nextSeqNum = 2;
 
-                    System.out.println("SENT an ACK");
+                   // System.out.println("SENT an ACK");
 
                     timelog = System.currentTimeMillis();
                     while(System.currentTimeMillis() - timelog < (long)600) {
@@ -220,7 +222,6 @@ public class RTPSocket {
             e.printStackTrace();
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -241,12 +242,11 @@ public class RTPSocket {
             if(isCLOSED) {
                 throw new IOException("The socket is already closed!");
             }
-            DatagramPacket dgrm_pkt;
+
             //i don't know how to access this particular socket's address in recvqueue
             while(true) {
-                synchronized(RTPStack.unestablished) {
-                    dgrm_pkt = RTPStack.unestablished.poll();
-                }
+
+                DatagramPacket dgrm_pkt = RTPStack.unestablished.poll();
 
                 if(dgrm_pkt != null) {
 
@@ -282,7 +282,7 @@ public class RTPSocket {
             timelog = System.currentTimeMillis();
             while(true) {
 
-                dgrm_pkt = RTPStack.recvQ.get(port).poll();
+                DatagramPacket dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
                 if(dgrm_pkt != null) {        
                     byte[] this_data = dgrm_pkt.getData();
@@ -324,7 +324,6 @@ public class RTPSocket {
             e.printStackTrace();
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             isCLOSED = true;
@@ -342,19 +341,20 @@ public class RTPSocket {
         try{
 
             if(isCLOSED) {
-                throw new IOException("The socket is already closed!");
+                //throw new IOException("The socket is already closed!");
+                return -1;
             }
             recv_buffer = new byte[10000];
             DatagramPacket dgrm_pkt;
             while(true) {
-                //System.out.println(port);
+                //System.out.println("port" + port);
                 //get the packet from the recv queue
                 dgrm_pkt = RTPStack.recvQ.get(port).poll();
 
                 if(dgrm_pkt == null) {
                     //System.out.println("Always null..");
                     continue;
-                }  
+                } 
                 byte[] this_data = dgrm_pkt.getData();
                 //take the data from datagram and convert into RTPacket
                 RTPacket rtp_pkt = RTPacket.makeIntoPacket(this_data);
@@ -364,6 +364,7 @@ public class RTPSocket {
                 int seq_num = rtp_pkt.seq_num();
                 int flags_num = rtp_pkt.flags();
 
+                //System.out.println("recv base: " + recv_base);
                 //System.out.println("seq_num " + seq_num);
                 //System.out.println("flags " + flags_num);
                 //System.out.println(Arrays.toString(flags));
@@ -372,7 +373,7 @@ public class RTPSocket {
                     if(seq_num == recv_base) {                            
 
                         while(rtp_pkt != null) {
-
+                            System.out.println("packet received..");
                             byte[] data = rtp_pkt.getData();
                             if(data.length + recvOffset < recv_buffer.length) {
                                 //System.out.println(rtp_pkt.seq_num() + "small enough");
@@ -388,20 +389,23 @@ public class RTPSocket {
 
                                 if(rtp_pkt.getFlags()[2].equals("RST")) {
                                     System.arraycopy(recv_buffer, 0, usrBuf, usrOff, Math.min(usrLen, recv_buffer.length)); // if last packet, copies recvbuffer to userbuffer
-                                    RTPacket complete = new RTPacket(0, 8, recvSlidingWnd, new String[]{"PSH"}, null);
+                                    RTPacket complete = new RTPacket(0, 1, recvSlidingWnd, new String[]{"PSH"}, null);
                                     complete.setConnectionID(port);
                                     complete.updateChecksum();
                                     byte[] finish = complete.toByteForm();
                                     DatagramPacket completed = new DatagramPacket(finish, finish.length, destAddr, destPort);
                                     RTPStack.sendQ.put(completed);
-                                    System.out.println("returning..");
-                                    return recvOffset; // returns bytes read
+                                    //System.out.println("returning.." + recvOffset);
+                                    recv_base++;
+                                    int temp = recvOffset;
+                                    recvOffset = 0;
+                                    return temp; // returns bytes read
                                 }
                                 recv_base++;
                                 rtp_pkt = inOrderPackets.remove(recv_base);
                             } else {
                                 //buffer isn't big enough to hold the packet so we put the datagram back into the recvQ
-                                System.out.println(seq_num + "too large");
+                                //System.out.println(seq_num + "too large");
                                 System.arraycopy(recv_buffer, 0, usrBuf, usrOff, Math.min(usrLen, recv_buffer.length));
                                 RTPStack.recvQ.get(port).put(dgrm_pkt);
                                 int temp = recvOffset;
@@ -415,8 +419,8 @@ public class RTPSocket {
                     } else if(seq_num > recv_base && seq_num < recv_base+recvSlidingWnd) {
                         
                         RTPacket ack = new RTPacket(0, seq_num, recvSlidingWnd, new String[]{"ACK"}, null);
-                        ack.updateChecksum();
                         ack.setConnectionID(port);
+                        ack.updateChecksum();
                         byte[] toSend = ack.toByteForm();
                         DatagramPacket ackToSend = new DatagramPacket(toSend, toSend.length, destAddr, destPort);
                         RTPStack.sendQ.put(ackToSend);
@@ -432,10 +436,9 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection was closed by recipient");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
-            e.printStackTrace();
+            //e.printStackTrace();
             isCLOSED = true;
         } catch (InterruptedException ie) {
             throw ie;
@@ -457,6 +460,7 @@ public class RTPSocket {
 
             /* PRE-PROCESSING - make the entire byte array into packets*/
             int totalBytesSent = 0;
+            send_base = nextSeqNum;
 
             RTPacket rtp_pkt;
             while(totalBytesSent < data.length) {
@@ -473,16 +477,16 @@ public class RTPSocket {
                     // DatagramPacket dp = new DatagramPacket(byteForm, byteForm.length);
                     // send_buffer.add(dp);
                     totalBytesSent += (data.length - totalBytesSent);
-                    System.out.println("bytes in packet: " + totalBytesSent);
+                    //System.out.println("bytes in packet: " + totalBytesSent);
                 } else {
                     byte[] buf = new byte[MAX_PCKT_SIZE];
                     System.arraycopy(data, totalBytesSent, buf, 0, buf.length);
                     rtp_pkt = new RTPacket(nextSeqNum, 0, sendSlidingWnd, new String[]{""}, buf);
                     totalBytesSent += MAX_PCKT_SIZE;
-                    System.out.println("(Pre processing) flag: " + rtp_pkt.flags());
-                    System.out.println("SeqNum: " + nextSeqNum);
+                    //System.out.println("(Pre processing) flag: " + rtp_pkt.flags());
+                    //System.out.println("SeqNum: " + nextSeqNum);
                     //System.out.println(Arrays.toString(rtp_pkt.getFlags()));
-                    System.out.println("bytes in packet: " + totalBytesSent);
+                    //System.out.println("bytes in packet: " + totalBytesSent);
                 }
 
                 rtp_pkt.setConnectionID(port);
@@ -493,12 +497,13 @@ public class RTPSocket {
                 //System.out.println("nextSeqNum = " + nextSeqNum);
                 nextSeqNum++;
             }
+            int last_packet = send_base + send_buffer.size();
 
             //System.out.println(totalBytesSent);
 
             /* SENDING PACKETS */
             for (int i = send_base; i < Math.min(send_buffer.size() + send_base, sendSlidingWnd + send_base); i++) {
-                //System.out.println(send_buffer.size());
+                //System.out.println("Packet sent: " + send_base);
                 RTPStack.sendQ.put(send_buffer.get(i));
             }
 
@@ -521,8 +526,6 @@ public class RTPSocket {
                     int ack_num = rtp_pkt.getAck();
                     int flags_num = rtp_pkt.flags();
                     //System.out.println("(Received) flags: " + flags_num);
-                    System.out.println("Ack Number: " + ack_num);
-                    System.out.println("Send base: " + send_base);
                     //System.out.println(Arrays.toString(flags));
 
                     if(ack_num != -1) {
@@ -531,7 +534,7 @@ public class RTPSocket {
                             System.out.println("received ack");
 
                             while(rtp_pkt != null) {
-                                if(send_base + sendSlidingWnd < send_buffer.size() + 2) {
+                                if(send_base + sendSlidingWnd < last_packet) {
                                     System.out.println("Packet Sent: " + (send_base + sendSlidingWnd));
                                     RTPStack.sendQ.put(send_buffer.get(send_base+sendSlidingWnd));
                                 }
@@ -545,22 +548,20 @@ public class RTPSocket {
                             timelog = System.currentTimeMillis();
 
 
+                        } else if((ack_num == 1) && (flags[3].equals("PSH"))) {
+                            this.send_buffer.clear();
+                            return;
                         } else if((ack_num > send_base) && (ack_num < send_base+sendSlidingWnd)) {
                             inOrderAcks.put(ack_num, rtp_pkt);
                             packets_acked++;
-                        } else if((ack_num == 8) && (flags[3].equals("PSH"))) {
+                        } else if((ack_num < send_base) && (send_base == last_packet)) {
+                            this.send_buffer.clear();
                             return;
-                        } else {
                             //DROP THE PACKET
                         }
                     }
-                    System.out.println("packets acked: " + packets_acked);
-                    System.out.println("send_buffer: " + send_buffer.size());
-                    if(packets_acked >= send_buffer.size()){
-                        //System.out.println(send_buffer.size());
-                        //System.out.println(send_base);
-                        return;
-                    }
+                    //System.out.println("packets acked: " + packets_acked);
+                    //System.out.println("send_buffer: " + send_buffer.size());
                 }
 
                 /* RE-TRANS FROM TIMEOUT */
@@ -580,7 +581,6 @@ public class RTPSocket {
         } catch (NullPointerException e) {
             if(RTPStack.recvQ.get(port) == null) System.out.println("The connection has already closed");
             //delete the recvQ for this socket
-            System.out.println("?");
             RTPStack.recvQ.remove(port);
             RTPStack.available_ports.add(port);
             e.printStackTrace();
@@ -590,5 +590,9 @@ public class RTPSocket {
         }
         return;
 
+    }
+
+    public boolean isClosed() {
+        return isCLOSED;
     }
 }

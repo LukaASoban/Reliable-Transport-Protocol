@@ -7,6 +7,7 @@ import java.net.*;
 import java.io.*;
 import java.util.Collections; 
 import java.util.HashMap; 
+import java.util.Arrays;
 
 public class dbengineRTP {
 
@@ -36,24 +37,16 @@ public class dbengineRTP {
 			RTPSocket client_socket = new RTPSocket(null, portNumber);
 			client_socket.accept();
 
-			/* FIRST GRABBING THE LENGTH OF THE QUERY*/
-			byte[] receive_buffer = new byte[4]; //find the length of the file to recieve
+
+			int bytesRecv;
+        	byte[] queryBuff = new byte[BUFFERSIZE]; //byte array to hold db query
 			int bytesRead = 0;
-			while(bytesRead < receive_buffer.length) {
-				bytesRead += client_socket.receive(receive_buffer, bytesRead, receive_buffer.length - bytesRead);
-			}
+			client_socket.receive(queryBuff, bytesRead, queryBuff.length - bytesRead);
 
-			int sizeOfStream = ((receive_buffer[0] & 0xFF) << 24) | ((receive_buffer[1] & 0xFF) << 16)
-        					| ((receive_buffer[2] & 0xFF) << 8) | (receive_buffer[3] & 0xFF);
-        	/* END OF GRABBING LENGTH OF QUERY*/
+			System.out.println("got querey");
+			String q = new String(queryBuff).trim().replaceAll(" ", "");
 
-        	byte[] queryBuff = new byte[sizeOfStream]; //byte array to hold db query
-			bytesRead = 0;
-			while(bytesRead < queryBuff.length) {
-				bytesRead += client_socket.receive(queryBuff, bytesRead, queryBuff.length - bytesRead);
-			}
-
-			String q = new String(queryBuff);
+			System.out.println(q);
 
 			/* Being to compute the query result to send back to client */
 			String[] dbQuery = q.split(",");
@@ -88,9 +81,7 @@ public class dbengineRTP {
 			
 
     		byte[] resultToSend = q.getBytes();
-    		byte[] resultLength = toBytes(resultToSend.length);
 
-			client_socket.send(resultLength);
 			client_socket.send(resultToSend);
 
 			client_socket.close(); //end the connection
