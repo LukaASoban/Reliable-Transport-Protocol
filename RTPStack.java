@@ -3,6 +3,19 @@ import java.util.LinkedList;
 import java.util.Arrays;
 import java.net.*;
 import java.io.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.TimerTask;
+import java.util.Timer;
 
 public class RTPStack {
     private byte[] buffer;
@@ -15,11 +28,15 @@ public class RTPStack {
     protected static LinkedBlockingQueue<DatagramPacket> sendQ;
     protected static LinkedBlockingQueue<DatagramPacket> unestablished;
     protected static LinkedList<Integer> available_ports;
+    ExecutorService executor;
+    Thread r;
+    Thread s;
 
 
     public void init(InetAddress bindAddr, int port) throws SocketException{
 
         try {
+            executor = Executors.newFixedThreadPool(1);
 
             buffer = new byte[1000];
             socket = new DatagramSocket(port);
@@ -29,8 +46,6 @@ public class RTPStack {
             unestablished = new LinkedBlockingQueue<DatagramPacket>();
             closeThreads = new ConcurrentHashMap<Integer, CloseThread>();
             available_ports = new LinkedList<Integer>();
-
-            udp_pkt = new DatagramPacket(buffer, buffer.length);
 
             for(int i = 1; i < Short.MAX_VALUE; i++) {
                 available_ports.add(i);
@@ -43,8 +58,11 @@ public class RTPStack {
             Thread s = new Thread(sendthread);
             r.setDaemon(true);
             s.setDaemon(true);
-            r.start();
-            s.start();
+            
+            for (int i = 0; i < 10000; i++) {
+                executor.execute(r);
+                executor.execute(s);
+            }
 
 
         } catch (SocketException se) {
@@ -69,10 +87,11 @@ public class RTPStack {
 
         @Override 
         public void run() {
-            while(true) {
+            
 
                 try{
                     
+                    udp_pkt = new DatagramPacket(buffer, buffer.length);
                     socket.receive(udp_pkt); //get a new packet
 
                     //get the length of the actual packet (buffer - length of packet)
@@ -89,9 +108,8 @@ public class RTPStack {
                     System.arraycopy(buffer, 0, l, 0, l.length);
                     //udp_pkt.setData(l);
                     DatagramPacket deep_cpy;
-                    synchronized(udp_pkt) {
-                        deep_cpy = new DatagramPacket(l, l.length, client_addr, client_port);
-                    }
+                    deep_cpy = new DatagramPacket(l, l.length, client_addr, client_port);
+
 
                     //System.out.println(deep_cpy);
                     
@@ -100,7 +118,7 @@ public class RTPStack {
                     //TODO: DELETE isCorrupt FROM EVERY OTHER PART OF THE CODE
                     if(RTPacket.isCorrupt(deep_cpy.getData())) {
                         //System.out.println("corrupt..");
-                        continue;
+                        return;
                     }
 
                     
@@ -123,7 +141,7 @@ public class RTPStack {
                                 recvQ.get(port_num).put(deep_cpy);
                             }
                             //recvQ.get(port_num).put(deep_cpy);
-                            continue;
+                            return;
                         }
                         //this is the first time we have seen a FIN for this connection
                         if(closeThreads.get(port_num) == null) {
@@ -148,7 +166,7 @@ public class RTPStack {
                         }
                     
                         //if we get a FIN from a port that already has a thread running discard it        
-                        continue;
+                        return;
                     }
 
                     //is the packet from a established connection or not?
@@ -166,9 +184,11 @@ public class RTPStack {
                     e.printStackTrace();
                 } catch (Exception e) {
                     //e.printStackTrace();
+                } finally {
+
                 }
 
-            }
+            
 
         }
 
@@ -180,7 +200,7 @@ public class RTPStack {
         @Override
         public void run() {
 
-            while(true) {
+    
 
                 try {
                     DatagramPacket send_pkt;
@@ -196,7 +216,7 @@ public class RTPStack {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+        
 
         }
     }
