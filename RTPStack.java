@@ -134,7 +134,10 @@ public class RTPStack {
                             byte[] fin_ack = finack.toByteForm();
                             DatagramPacket finAck = new DatagramPacket(fin_ack, fin_ack.length, udp_pkt.getAddress(), udp_pkt.getPort());
                             //System.out.println("fin|ack sent..");
-                            sendQ.put(finAck);
+                            synchronized(sendQ){
+                                sendQ.put(finAck);
+                            }
+                            
                             
                             //We spawn a new thread so that it checks for ACKS               
                             CloseThread ct = new CloseThread(port_num);
@@ -181,7 +184,10 @@ public class RTPStack {
 
                 try {
                     DatagramPacket send_pkt;
-                    send_pkt = sendQ.poll();
+                    synchronized(sendQ){
+                        send_pkt = sendQ.poll();
+                    }
+                    
 
                     if(send_pkt != null) {
                         socket.send(send_pkt); // convert to datagram packet
@@ -239,7 +245,10 @@ public class RTPStack {
                         finack.setConnectionID(port);
                         finack.updateChecksum();
                         dgm_pkt.setData(finack.toByteForm());
-                        sendQ.put(dgm_pkt);
+                        synchronized(sendQ){
+                            sendQ.put(dgm_pkt);
+                        }
+                        
                         timelog = System.currentTimeMillis();
                     }
                 } catch (InterruptedException e) {
