@@ -50,6 +50,7 @@ public class RTPStack {
             for(int i = 1; i < Short.MAX_VALUE; i++) {
                 available_ports.add(i);
             }
+            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 
             //This is where the recv and send threads will start running
             RecvThread recvthread = new RecvThread();
@@ -85,7 +86,6 @@ public class RTPStack {
 
     private class RecvThread implements Runnable {
 
-        @Override 
         public void run() {
             
 
@@ -197,9 +197,7 @@ public class RTPStack {
 
     private class SendThread implements Runnable {
 
-        @Override
         public void run() {
-
     
 
                 try {
